@@ -33,7 +33,7 @@
 
 // DRIVER ports
 #define DRV_EN_PORT 	PORTD
-#define DRV_MS1_PORT 	PORTD
+#define DRV_MS1_PORT 	PORTC
 #define DRV_MS2_PORT	PORTD
 #define DRV_MS3_PORT	PORTD
 #define DRV_RST_PORT	PORTD
@@ -41,8 +41,8 @@
 #define DRV_STEP_PORT	PORTB
 #define DRV_DIR_PORT	PORTB
 
-#define DRV_EN_PIN 		PORTD1
-#define DRV_MS1_PIN 	PORTD0
+#define DRV_EN_PIN 		PORTD7
+#define DRV_MS1_PIN 	PORTC5
 #define DRV_MS2_PIN		PORTD4
 #define DRV_MS3_PIN		PORTD5
 #define DRV_RST_PIN		PORTD6

@@ -42,14 +42,15 @@ static void ports_init(void){
 	PORTB &= ~(1<<PORTB3);	// RW to GND
 
 	// Driver pins
-	DDRD |= (1<<DDD1);	// ~ENABLE - D1
-	DDRD |= (1<<DDD0);	// MS1 - D0
+	DDRD |= (1<<DDD7);	// ~ENABLE - D1
+	DDRC |= (1<<DDC5);	// MS1 - D0
 	DDRD |= (1<<DDD4); 	// MS2 - D4
 	DDRD |= (1<<DDD5);	// MS3 - D5
 	DDRD |= (1<<DDD6);	// ~RST - D6
-	DDRD |= (1<<DDD7);	// ~SLEEP - D7
 	DDRB |= (1<<DDB0);	// STEP - D8
 	DDRB |= (1<<DDB1);	// DIR - D9
+	// ~SLEEP - Discarded for use. It's not useful
+	// connected to Vdd by default
 
 	DRV_DIR_PORT |= (1<<DRV_DIR_PIN);
 	DRV_STEP_PORT &= ~(1<<DRV_STEP_PIN);
@@ -64,9 +65,11 @@ static void ports_init(void){
 	DDRC &= ~(1<<DDC4);
 	PORTC |= (1<<PORTC4); 	// Pull-up enabled
 
-	// debug
-	DDRC |= (1<<DDC5);
-	PORTC &=~(1<<PORTC5);
+	// debug Serial port
+	DDRD |= (1<<DDD1);		// TXD
+	DDRD |= (1<<DDD0);		// RXD
+	PORTD |= (1<<PORTD1);	// initial value HIGH
+	PORTD |= (1<<PORTD1);	// initial value HIGH
 }
 
 static void system_defaults(void){
