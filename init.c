@@ -69,7 +69,7 @@ static void ports_init(void){
 	DDRD |= (1<<DDD1);		// TXD
 	DDRD |= (1<<DDD0);		// RXD
 	PORTD |= (1<<PORTD1);	// initial value HIGH
-	PORTD |= (1<<PORTD1);	// initial value HIGH
+	PORTD |= (1<<PORTD0);	// initial value HIGH
 }
 
 static void system_defaults(void){
