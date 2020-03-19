@@ -12,9 +12,11 @@
 #include "menu.h"
 #include "move.h"
 #include "timers.h"
+#include "uart.h"
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <avr/pgmspace.h>
 #include <util/delay.h>
 #include <stdlib.h>
 
@@ -31,12 +33,13 @@ volatile uint8_t speed_update = FALSE;
 int main(void)
 {
 	boot();
-	
 	lcd_screen(SCREEN_WELCOME);
-	
 	drv_step_mode(MODE_SIXTEENTH_STEP);
-
 	general_timer_set(ENABLE);
+
+	uart_send_string("Hello World!\n\r");
+	uart_send_string_p(PSTR("This is a ROM-stored string\n\r"));
+
 	sei();
 
 	uint8_t x = FALSE;

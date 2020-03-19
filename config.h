@@ -12,7 +12,10 @@
 #include <avr/io.h>
 #include <stdint.h>
 
+// 16MHz ceramic resonator, no prescaler
 #define F_CPU	16000000UL
+// A standard baud rate for serial interface
+#define BAUD 	115200UL
 
 #define TRUE	1
 #define FALSE	0

@@ -15,6 +15,7 @@ SRC = main.c \
 	  menu.c \
 	  move.c \
 	  timers.c \
+	  uart.c \
 	  util.c
 
 LIB = -I./

@@ -5,6 +5,7 @@
 #include "external_int.h"
 #include "lcd.h"
 #include "timers.h"
+#include "uart.h"
 
 #include <avr/io.h>
 
@@ -20,6 +21,8 @@ void boot(void){
 	encoder_init();
 	limit_switch_init();
 	lcd_init();
+	uart_init();
+	uart_set(ENABLE);
 }
 
 static void ports_init(void){
