@@ -42,7 +42,9 @@ int main(void)
 
 	sei();
 
+	// misc vars for retrieved arguments in menu functions
 	uint8_t x = FALSE;
+	uint8_t y = FALSE;
 
 	while(TRUE){
 
@@ -54,30 +56,46 @@ int main(void)
 				else system_state = STATE_FAIL;
 				break;
 
-			case STATE_CHOOSE_MOVEMENT:
+			case STATE_CHOOSE_MOVEMENT:		// Automatic or Manual movement
 				system_state = choose_movement();
+				break;
+
+			case STATE_CHOOSE_MANUAL_CONTROL:
+				y = choose_manual_control();
+				system_state = STATE_CHOOSE_MANUAL_MOVEMENT;
 				break;
 
 			case STATE_CHOOSE_MANUAL_MOVEMENT:
 				x = choose_manual_movement();
-				if(x == 0) system_state = STATE_CHOOSE_MOVEMENT;
-				else system_state = STATE_MANUAL_MOVEMENT;
+				if(x == QUIT_MENU){
+					system_state = STATE_CHOOSE_MOVEMENT;	
+				} else {
+					if(y == CONTROL_SPEED) system_state = STATE_MANUAL_SPEED;
+					else if(y == CONTROL_POS) system_state = STATE_MANUAL_POSITION;
+				}
 				break;
 
-			case STATE_MANUAL_MOVEMENT:
-				manual_movement(x);
+			case STATE_MANUAL_SPEED:
+				manual_speed(x);
+				system_state = STATE_CHOOSE_MOVEMENT;
+				break;
+
+			case STATE_MANUAL_POSITION:
+				manual_position(x);
 				system_state = STATE_CHOOSE_MOVEMENT;
 				break;
 
 			case STATE_CREATE_MOVEMENT:
 				user_movement();
+				system_state = STATE_FAIL;
 				break;
-
-			case STATE_CHOOSE_CONTROL:
-				
 
 			case STATE_FAIL:
+				fail_message();
+				_delay_ms(1000);
+				system_state = STATE_CHOOSE_MOVEMENT;
 				break;
+			
 			default:
 				break;
 		}

@@ -24,8 +24,12 @@ enum {
 	SCREEN_HOMING_DONE,
 	SCREEN_LINEAR_SPEED,
 	SCREEN_EXPONENTIAL_SPEED,
+	SCREEN_LINEAR_POSITION,
+	SCREEN_EXPONENTIAL_POSITION,
 	SCREEN_CHOOSE_MOVEMENT,
-	SCREEN_CHOOSE_MANUAL_MOVEMENT
+	SCREEN_CHOOSE_MANUAL_CONTROL,
+	SCREEN_CHOOSE_MANUAL_MOVEMENT,
+	SCREEN_FAIL_MESSAGE
 };
 
 void lcd_send_byte(uint8_t rs, uint8_t data);
@@ -37,6 +41,7 @@ void lcd_clear_screen(void);
 
 void lcd_screen(uint8_t screen);
 void lcd_update_speed(uint16_t speed);
+void lcd_update_position(uint32_t pos);
 
 // debug ----------
 void lcd_update_cnt(uint8_t cnt);

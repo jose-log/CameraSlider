@@ -159,6 +159,26 @@ void lcd_screen(uint8_t screen){
 			lcd_write_str("cms/s");
 			break;
 
+		case SCREEN_LINEAR_POSITION:
+			lcd_clear_screen();	
+			lcd_set_cursor(0,10);
+			lcd_write_str("linear");
+			lcd_set_cursor(1,0);
+			lcd_write_str("Pos:");
+			lcd_set_cursor(1,11);
+			lcd_write_str("mm");
+			break;
+
+		case SCREEN_EXPONENTIAL_POSITION:
+			lcd_clear_screen();	
+			lcd_set_cursor(0,5);
+			lcd_write_str("exponential");
+			lcd_set_cursor(1,0);
+			lcd_write_str("Pos:");
+			lcd_set_cursor(1,11);
+			lcd_write_str("mm");
+			break;
+
 		case SCREEN_CHOOSE_MOVEMENT:
 			lcd_clear_screen();
 			lcd_write_str(">Create Movement");
@@ -166,11 +186,25 @@ void lcd_screen(uint8_t screen){
 			lcd_write_str(" Manual Movement");
 			break;
 
+		case SCREEN_CHOOSE_MANUAL_CONTROL:
+			lcd_clear_screen();
+			lcd_write_str(">Position ctl.");
+			lcd_set_cursor(1,0);
+			lcd_write_str(" Speed ctl.");
+			break;
+
 		case SCREEN_CHOOSE_MANUAL_MOVEMENT:
 			lcd_clear_screen();
 			lcd_write_str("> Linear");
 			lcd_set_cursor(1,0);
 			lcd_write_str("  Exponential");
+			break;
+
+		case SCREEN_FAIL_MESSAGE:
+			lcd_clear_screen();
+			lcd_write_str(" ...ooops =(");
+			lcd_set_cursor(1,0);
+			lcd_write_str(" <ERROR>");
 			break;
 	}
 }
@@ -210,6 +244,21 @@ void lcd_update_speed(uint16_t speed){
 	if(decimal < 10)
 		lcd_write_char('0');	
 	lcd_write_str(decimal_str);
+}
+
+void lcd_update_position(uint32_t pos){
+
+	// used to display speed
+	char str[5];
+	
+	pos =	pos / ((STEPS_PER_REV / CMS_PER_REV) / 10);
+
+	itoa(pos, str, 10);			// convert to string
+	
+	lcd_set_cursor(1,4);
+	lcd_write_str("    ");
+	lcd_set_cursor(1,4);
+	lcd_write_str(str);
 }
 
 // debug ------------
