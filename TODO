@@ -2,3 +2,8 @@
 TODO:
 
 > Implement all the movement creation menu
+
+Manual movement:
+
+> Max speed as a configuration parameter
+> Acceleration/Deceleration speed also as a config parameter

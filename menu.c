@@ -299,9 +299,11 @@ uint8_t manual_position(uint8_t type){
 	uint16_t x;
 	uint16_t y = 0;
 	uint16_t speed = 0;
-	uint8_t acc = 2;
+	uint8_t acc = 5;
 
-	int32_t setpoint = 0;
+	uint8_t state = 0;
+
+	static int32_t setpoint = 0;
 	int32_t error = 0;
 
 	// LCD screen:
@@ -318,36 +320,101 @@ uint8_t manual_position(uint8_t type){
 		x = 0;
 		while (!x) x = millis();
 		y++;
-		
-		// lcd options
-		// !!! there's still a problem with the speed the LCD shows: when in
-		// marginal zone, the function lcd_update speed doesn't know that the
-		// speed was corrected!. THus, it shows a wrong speed!
-		if(encoder.update){
-			encoder.update = FALSE;
-			
-			// Determines encoder position change
-			if(encoder.dir == CW){
-				setpoint += (MAX_COUNT / 100);
-				if(setpoint >= MAX_COUNT)
-					setpoint = MAX_COUNT;
-			} else if(encoder.dir == CCW){
-				setpoint -= (MAX_COUNT / 100);
-				if(setpoint <= 0)
-					setpoint = 0;
-			}
+
+		switch (state) {
+
+			case 0:
+				// Encoder detection: if encoder movement is detected:
+				// - look for rotation direction
+				// - move position setpoint accordingly
+				if(encoder.update){
+					encoder.update = FALSE;
+					
+					// Determines encoder position change
+					if(encoder.dir == CW){
+						setpoint += (MAX_COUNT / 100);
+						if(setpoint >= MAX_COUNT)
+							setpoint = MAX_COUNT;
+					} else if(encoder.dir == CCW){
+						setpoint -= (MAX_COUNT / 100);
+						if(setpoint <= 0)
+							setpoint = 0;
+					}
+					// Motor direction determined according to error sign
+					error = setpoint - ((int32_t)slider.position);
+					if (error > 0) {
+						slider.spin = CW;
+						drv_spin_direction(slider.spin);
+					} else if (error < 0) {
+						slider.spin = CCW;
+						drv_spin_direction(slider.spin);
+					}
+
+					if (y == 0)
+						state = 1;
+					else
+						state = 3;
+				}
+				break;
+
+			case 1:
+				// Speed value determined according to:
+				// - previous speed value: can only increase one speed step at a time
+				// - closeness to the end point: the closer, the slower
+				error = setpoint - ((int32_t)slider.position);
+				n = (uint16_t)(abs(error) / 75);
+				if(n > (sizeof(exponential_speed)/sizeof(uint16_t)))
+					n = sizeof(exponential_speed)/sizeof(uint16_t);
+
+				// Acceleration occurs by increasing one speed step at a time, at time
+				// intervals determined by the selected acceleration level			
+				if(n - n_prev > 1){
+					n = n_prev + 1;
+					n_prev = n;
+				}
+
+				lcd_update_position(slider.position);
+
+				if (n > 0)
+					state = 2;
+				else
+					state = 4;
+				break;
+
+			case 2:
+				if (type == SPEED_LINEAR) 
+					speed = 448/abs(n);
+				else if (type == SPEED_EXPONENTIAL) 
+					speed = pgm_read_word(exponential_speed + abs(n) - 1);
+				speed_set(speed);
+				state = 3;
+				break;
+
+			case 3:
+				y++;
+				if (y >= accel_level[acc]) {
+					y = 0;
+					state = 1;
+				}
+				if (encoder.update) 
+					state = 0;
+				break;
+
+			case 4:
+				error = setpoint - ((int32_t)slider.position);
+				if(error)
+					trim_position(error, setpoint);	
+				speed_set(0);
+				lcd_update_position(slider.position);
+				state = 0;
+				break;
+
+			default: 
+				state = 0;
+				break;
 		}
 
-		// Motor direction determined according to error sign
-		error = setpoint - slider.position;
-		if (error > 0) {
-			slider.spin = CW;
-			drv_spin_direction(slider.spin);
-		} else if (error < 0) {
-			slider.spin = CCW;
-			drv_spin_direction(slider.spin);
-		}
-
+		/*
 		if (!(y % accel_level[acc])){
 			y = 0;
 
@@ -388,7 +455,7 @@ uint8_t manual_position(uint8_t type){
 
 			lcd_update_position(slider.position);
 		}
-
+		*/
 		// Check encoder button
 		if(btn.query) btn_check();
 		
