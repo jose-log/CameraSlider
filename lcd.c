@@ -165,7 +165,7 @@ void lcd_screen(uint8_t screen){
 			lcd_write_str("linear");
 			lcd_set_cursor(1,0);
 			lcd_write_str("Pos:");
-			lcd_set_cursor(1,11);
+			lcd_set_cursor(1,8);
 			lcd_write_str("mm");
 			break;
 
@@ -175,7 +175,7 @@ void lcd_screen(uint8_t screen){
 			lcd_write_str("exponential");
 			lcd_set_cursor(1,0);
 			lcd_write_str("Pos:");
-			lcd_set_cursor(1,11);
+			lcd_set_cursor(1,8);
 			lcd_write_str("mm");
 			break;
 
@@ -246,7 +246,7 @@ void lcd_update_speed(uint16_t speed){
 	lcd_write_str(decimal_str);
 }
 
-void lcd_update_position(uint32_t pos){
+void lcd_update_position(uint32_t pos) {
 
 	// used to display speed
 	char str[5];
@@ -257,7 +257,10 @@ void lcd_update_position(uint32_t pos){
 	
 	lcd_set_cursor(1,4);
 	lcd_write_str("    ");
-	lcd_set_cursor(1,4);
+	if (pos < 10) lcd_set_cursor(1,7);			// one digit
+	else if (pos < 100) lcd_set_cursor(1,6);	// two digits
+	else if (pos < 1000) lcd_set_cursor(1,5);	// three digits
+	else if (pos < 10000) lcd_set_cursor(1,4);	// four digits
 	lcd_write_str(str);
 }
 

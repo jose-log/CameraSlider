@@ -190,7 +190,7 @@ const uint16_t exponential_speed[] PROGMEM = {
 	};
 */
 const uint16_t exponential_speed[] PROGMEM = {
-	14336,3584,1593,896,573,398,293,224,177,143,118,100,85,
+	4000,3000,1593,896,573,398,293,224,177,143,118,100,85,
 	73,64,56,50,44,40,36,33,30,27,25,23,21,20,18,17,16,15,14
 	};
 
@@ -279,12 +279,21 @@ uint8_t manual_speed(uint8_t type){
 	return 0;
 }
 
-const uint8_t accel_level[] = {
+/*
+* Acceleration level
+* 	Contains the time (in ms) of duration of every speed step
+*	The higher the number, the lower the acceleration profile
+*/
+static const uint8_t accel_level[] = {
 	25, 50, 75, 100, 125, 150
 };
 
 static void trim_position(int32_t e, int32_t s){
-
+/*
+* Continually checks for the error distance. 
+* It't a blocking function that exits only when error is zero.
+* Speed is set to zero (if necessary) outside of this function.
+*/
 	while(TRUE){
 		e = s - slider.position;
 		if(e == 0)
@@ -292,19 +301,23 @@ static void trim_position(int32_t e, int32_t s){
 	}
 }
 
+static const uint16_t SZ = sizeof(exponential_speed)/sizeof(uint16_t);
+
 uint8_t manual_position(uint8_t type){
 
-	int8_t n = 0;
-	int8_t n_prev = 0;
+	// speed vector vars
+	uint16_t n = 0;
+	uint16_t n_prev = 0;
+	// counters to coordinate timing and FSM execution
 	uint16_t x;
 	uint16_t y = 0;
-	uint16_t speed = 0;
-	uint8_t acc = 5;
-
-	uint8_t state = 0;
-
+	// positioning vars
 	static int32_t setpoint = 0;
 	int32_t error = 0;
+	// misc 
+	uint16_t speed = 0;
+	uint8_t state = 0;		// FSM
+	uint8_t acc = 5;		// Temporary. Must be chosen by user
 
 	// LCD screen:
 	if(type == SPEED_LINEAR)
@@ -319,7 +332,7 @@ uint8_t manual_position(uint8_t type){
 		clear_millis();
 		x = 0;
 		while (!x) x = millis();
-		y++;
+		//y++;
 
 		switch (state) {
 
@@ -349,11 +362,13 @@ uint8_t manual_position(uint8_t type){
 						slider.spin = CCW;
 						drv_spin_direction(slider.spin);
 					}
-
+					/*
 					if (y == 0)
-						state = 1;
+						state = 1;	// go to choose the value of n
 					else
-						state = 3;
+						state = 3;	// go to the waiting loop
+					*/
+					state = 1;	// go to choose the value of n
 				}
 				break;
 
@@ -363,22 +378,25 @@ uint8_t manual_position(uint8_t type){
 				// - closeness to the end point: the closer, the slower
 				error = setpoint - ((int32_t)slider.position);
 				n = (uint16_t)(abs(error) / 75);
-				if(n > (sizeof(exponential_speed)/sizeof(uint16_t)))
-					n = sizeof(exponential_speed)/sizeof(uint16_t);
-
+				if(n > SZ)
+					n = SZ;
 				// Acceleration occurs by increasing one speed step at a time, at time
 				// intervals determined by the selected acceleration level			
-				if(n - n_prev > 1){
+				if (n > n_prev)
 					n = n_prev + 1;
-					n_prev = n;
-				}
+				n_prev = n;				
 
 				lcd_update_position(slider.position);
+				DEBUG("1\n\rn: ");
+				char str[3];
+				itoa(n,str,10);
+				DEBUG(str);
+				DEBUG("\n\r");
 
 				if (n > 0)
-					state = 2;
+					state = 2;	// go to select speed according to n
 				else
-					state = 4;
+					state = 4;	// go to trimming position 
 				break;
 
 			case 2:
@@ -395,17 +413,23 @@ uint8_t manual_position(uint8_t type){
 				if (y >= accel_level[acc]) {
 					y = 0;
 					state = 1;
+					DEBUG("3\n\r");
 				}
-				if (encoder.update) 
+				if (encoder.update) {
 					state = 0;
+					DEBUG("e");
+				}
 				break;
 
 			case 4:
 				error = setpoint - ((int32_t)slider.position);
+				DEBUG("4\n\r");
 				if(error)
 					trim_position(error, setpoint);	
+				DEBUG("trimmed\n\r");
 				speed_set(0);
 				lcd_update_position(slider.position);
+				y = 0;
 				state = 0;
 				break;
 
@@ -414,48 +438,6 @@ uint8_t manual_position(uint8_t type){
 				break;
 		}
 
-		/*
-		if (!(y % accel_level[acc])){
-			y = 0;
-
-			// Speed value determined according to:
-			// - previous speed value: can only increase one speed step at a time
-			// - closeness to the end point: the closer, the slower
-			n = (uint16_t)(error / 75);
-			if(n > (sizeof(exponential_speed)/sizeof(uint16_t)))
-				n = sizeof(exponential_speed)/sizeof(uint16_t);
-
-			// Acceleration occurs by increasing one speed step at a time, at time
-			// intervals determined by the selected acceleration level			
-			if(n - n_prev > 1){
-				n = n_prev + 1;
-				n_prev = n;
-			}
-			
-			// Set slider speed according to user configuration and slider position		
-			if (n > 0) {
-				if ((!slider.out_of_bounds) ||
-				   ((slider.spin == CW) && (slider.position < MAX_COUNT)) ||
-				   ((slider.spin == CCW) && (slider.position > 0))){
-					if (type == SPEED_LINEAR) 
-						speed = 448/abs(n);
-					else if (type == SPEED_EXPONENTIAL) 
-						speed = pgm_read_word(exponential_speed + abs(n) - 1);
-					speed_set(speed);
-				} else {
-					speed = 0;
-				}
-			} else {
-				error = setpoint - slider.position;
-				if(error)
-					trim_position(error, setpoint);	
-				speed_set(0);
-				lcd_update_position(slider.position);
-			}
-
-			lcd_update_position(slider.position);
-		}
-		*/
 		// Check encoder button
 		if(btn.query) btn_check();
 		

@@ -71,6 +71,9 @@
 
 #define QUIT_MENU 			0
 
+// Debug
+#define DEBUG(x) 	uart_send_string(x);
+
 typedef enum {
 	STATE_HOMING,
 	STATE_CHOOSE_MOVEMENT,

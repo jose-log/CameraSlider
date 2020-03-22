@@ -25,7 +25,6 @@ LIB = -I./
 AVRDUDE_PORT	   = usb
 AVRDUDE_PROGRAMMER = usbasp
 
-
 MCU = atmega328p
 AVR_FREQ = 16000000L
 #LDSECTION  = --section-start=.text=0x7800
