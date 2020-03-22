@@ -190,9 +190,14 @@ const uint16_t exponential_speed[] PROGMEM = {
 	};
 */
 const uint16_t exponential_speed[] PROGMEM = {
-	4000,3000,1593,896,573,398,293,224,177,143,118,100,85,
+	3000,3000,1593,896,573,398,293,224,177,143,118,100,85,
 	73,64,56,50,44,40,36,33,30,27,25,23,21,20,18,17,16,15,14
-	};
+};
+
+const uint16_t linear_speed[] PROGMEM = {
+	448,448,224,149,112,90,75,64,56,50,45,41,37,34,32,30,28,26,
+	25,24,22,21,20,19,19,18,17,17,16,15,15,14
+};
 
 uint8_t manual_speed(uint8_t type){
 
@@ -288,19 +293,6 @@ static const uint8_t accel_level[] = {
 	25, 50, 75, 100, 125, 150
 };
 
-static void trim_position(int32_t e, int32_t s){
-/*
-* Continually checks for the error distance. 
-* It't a blocking function that exits only when error is zero.
-* Speed is set to zero (if necessary) outside of this function.
-*/
-	while(TRUE){
-		e = s - slider.position;
-		if(e == 0)
-			break;
-	}
-}
-
 static const uint16_t SZ = sizeof(exponential_speed)/sizeof(uint16_t);
 
 uint8_t manual_position(uint8_t type){
@@ -309,8 +301,7 @@ uint8_t manual_position(uint8_t type){
 	uint16_t n = 0;
 	uint16_t n_prev = 0;
 	// counters to coordinate timing and FSM execution
-	uint16_t x;
-	uint16_t y = 0;
+	uint16_t x = 0;
 	// positioning vars
 	static int32_t setpoint = 0;
 	int32_t error = 0;
@@ -326,14 +317,13 @@ uint8_t manual_position(uint8_t type){
 		lcd_screen(SCREEN_EXPONENTIAL_POSITION);
 	lcd_update_position(slider.position);
 
+	clear_millis();
+
 	while(TRUE){
 
 		// timing for loop execution
-		clear_millis();
-		x = 0;
-		while (!x) x = millis();
-		//y++;
-
+		x = millis();
+		
 		switch (state) {
 
 			case 0:
@@ -362,12 +352,6 @@ uint8_t manual_position(uint8_t type){
 						slider.spin = CCW;
 						drv_spin_direction(slider.spin);
 					}
-					/*
-					if (y == 0)
-						state = 1;	// go to choose the value of n
-					else
-						state = 3;	// go to the waiting loop
-					*/
 					state = 1;	// go to choose the value of n
 				}
 				break;
@@ -377,14 +361,21 @@ uint8_t manual_position(uint8_t type){
 				// - previous speed value: can only increase one speed step at a time
 				// - closeness to the end point: the closer, the slower
 				error = setpoint - ((int32_t)slider.position);
-				n = (uint16_t)(abs(error) / 75);
+				n = (uint16_t)(abs(error) / (2*accel_level[acc]));
 				if(n > SZ)
 					n = SZ;
 				// Acceleration occurs by increasing one speed step at a time, at time
 				// intervals determined by the selected acceleration level			
-				if (n > n_prev)
+				if (n > n_prev) {
 					n = n_prev + 1;
-				n_prev = n;				
+					if (x >= accel_level[acc]){
+						x = 0;
+						clear_millis();
+						n_prev = n;				
+					}
+				} else {
+					n_prev = n;
+				}
 
 				lcd_update_position(slider.position);
 				DEBUG("1\n\rn: ");
@@ -393,44 +384,33 @@ uint8_t manual_position(uint8_t type){
 				DEBUG(str);
 				DEBUG("\n\r");
 
-				if (n > 0)
-					state = 2;	// go to select speed according to n
-				else
-					state = 4;	// go to trimming position 
-				break;
-
-			case 2:
+				if (n == 0)
+					state = 2;	// go to trimming position 
+								
 				if (type == SPEED_LINEAR) 
-					speed = 448/abs(n);
+					speed = pgm_read_word(linear_speed + abs(n));
 				else if (type == SPEED_EXPONENTIAL) 
-					speed = pgm_read_word(exponential_speed + abs(n) - 1);
+					speed = pgm_read_word(exponential_speed + abs(n));
 				speed_set(speed);
-				state = 3;
-				break;
-
-			case 3:
-				y++;
-				if (y >= accel_level[acc]) {
-					y = 0;
-					state = 1;
-					DEBUG("3\n\r");
-				}
+				
 				if (encoder.update) {
 					state = 0;
 					DEBUG("e");
 				}
 				break;
 
-			case 4:
+			case 2:
 				error = setpoint - ((int32_t)slider.position);
-				DEBUG("4\n\r");
-				if(error)
-					trim_position(error, setpoint);	
-				DEBUG("trimmed\n\r");
-				speed_set(0);
-				lcd_update_position(slider.position);
-				y = 0;
-				state = 0;
+				if (error) {
+					if (encoder.update)
+						state = 0;
+				} else {
+					speed_set(0);
+					DEBUG("trimmed\n\r");
+					x = 0;
+					clear_millis();
+					state = 0;
+				}
 				break;
 
 			default: 
