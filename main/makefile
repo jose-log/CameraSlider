@@ -34,6 +34,7 @@ OPTIMIZE   = -Os
 # AVRDude
 AVRDUDE_FLAGS = -p $(MCU) -P $(AVRDUDE_PORT) -c $(AVRDUDE_PROGRAMMER) -v
 AVRDUDE_WRITE_FLASH = -U flash:w:$(OUTDIR)/$(PROGRAM).hex
+AVRDUDE_ERASE_FLASH = -e
 #AVRDUDE_WRITE_EEPROM = -U eeprom:w:$(PROGRAM).eep
 AVRDUDE_WRITE_FUSES = lock:w:$(LOCK):m -U efuse:w:$(EFUSE):m -U hfuse:w:$(HFUSE):m -U lfuse:w:$(LFUSE):m
 SAFEMODE = -u
@@ -64,7 +65,7 @@ OBJCOPY     = avr-objcopy
 OBJDUMP     = avr-objdump
 AVRDUDE 	= avrdude
 
-.PHONY: build program program_fuses poke clean
+.PHONY: build program program_fuses poke clean erase
 
 $(OUTDIR):
 	mkdir -p ./$(OUTDIR)
@@ -81,6 +82,9 @@ program_fuses:
 
 poke:
 	$(AVRDUDE) $(AVRDUDE_FLAGS)
+
+erase:
+	$(AVRDUDE) $(AVRDUDE_FLAGS) $(AVRDUDE_ERASE_FLASH)	
 
 
 %.elf: $(OBJ)

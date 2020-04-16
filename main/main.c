@@ -90,6 +90,10 @@ int main(void)
 				system_state = STATE_FAIL;
 				break;
 
+			case STATE_TEST_ACCELSTEPPER:
+				//accel_stepper();
+				break;
+
 			case STATE_FAIL:
 				fail_message();
 				_delay_ms(1000);
