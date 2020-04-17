@@ -32,10 +32,10 @@ int main(void){
 	uart_send_string("\n\rHello World!");
 
 	// Size of the vectors containing the delay coefficients
-	uint8_t sz = 10;
+	uint8_t sz = 120;
 	// Frequency yo be used in the final application
 	float f = (float)F_CPU / 64.0; 		// Timer Prescaler 64
-	float a = 16667.0;					// Acceleration value (steps per second per second)
+	float a = 8000.0;					// Acceleration value (steps per second per second)
 	float c0 = f * sqrt(2.0 / a);
 
 	sei();
@@ -48,10 +48,11 @@ int main(void){
 	char str[7];
 	uint16_t t;	
 
-	cn = 0.676*c0;
+	// Initial empiric correction. See David Austin Paper
+	cn = 0.676 * c0;	
 
 	uart_send_string("\n\rc0: ");
-	itoa((uint16_t)c0, str, 10);
+	itoa((uint16_t)cn, str, 10);
 	uart_send_string(str);
 
 	uart_send_string("\n\r***** Floating point *****");
@@ -59,7 +60,7 @@ int main(void){
 	itoa(TCNT2, str, 10);
 	uart_send_string("\n\rTCNT init: ");
 	uart_send_string(str);
-	general_timer_set(ENABLE);
+	//general_timer_set(ENABLE);
 
 	for (int8_t i = 1; i <= sz; i++) {
 		// Approximation method using arithmetic operations
@@ -87,14 +88,14 @@ int main(void){
 
 	uint16_t x,y,z;
  	uint16_t vi[sz];
- 	uint16_t cni = (uint16_t)c0;
+ 	uint16_t cni = (uint16_t)(0.676 * c0);
 
  	uart_send_string("\n\r***** Integer 16 *****");
 	general_timer_init();
  	itoa(TCNT2, str, 10);
  	uart_send_string("\n\rTCNT init: ");
  	uart_send_string(str);
- 	general_timer_set(ENABLE);
+ 	//general_timer_set(ENABLE);
 
 	for (uint8_t i = 1; i <= sz; i++) {
 		x = (4 * i) + 1;

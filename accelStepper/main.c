@@ -22,9 +22,10 @@ int main(void){
 
 	sei();
 	
-	stepper_move_to_pos(5000, REL);
-	while(current_pos < 4000);
-	stepper_move_to_pos(200, REL);
+	stepper_move_to_pos(-10000, REL);
+	while(current_pos > -5000);
+	stepper_move_to_pos(0, REL);
+	//stepper_stop();
 	
 	while(1);
 

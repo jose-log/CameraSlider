@@ -13,6 +13,6 @@ void speed_timer_set_raw(uint16_t c);
 
 void aux_timer_init(void);
 
-void aux_timer_set(uint8_t state, uint16_t t);
+void aux_timer_set(uint8_t state, uint8_t t);
 
 #endif /* TIMERS_H */

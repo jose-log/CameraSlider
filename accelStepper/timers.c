@@ -44,12 +44,12 @@ void aux_timer_init(void){
 	TCNT0 = 0;					// Clear counter
 }
 
-void aux_timer_set(uint8_t state, uint16_t t){
+void aux_timer_set(uint8_t state, uint8_t t){
 
 	TCNT0 = 0;
 	if(state){
 		OCR0A = t;
-		TCCR1B |= (1<<CS00);	// Prescaler: 1. Start timer
+		TCCR0B |= (1<<CS00);	// Prescaler: 1. Start timer
 	} else {
 		TCCR0B &= ~((1<<CS02) | (1<<CS01) | (1<<CS00));
 		OCR0A = 0;

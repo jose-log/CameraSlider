@@ -11,6 +11,7 @@
 #include <util/delay.h>
 #include <avr/interrupt.h>
 #include <stdint.h>
+#include <util/atomic.h>
 
 #define SPEED_UP	0xF1
 #define SPEED_FLAT	0xF2
@@ -51,6 +52,7 @@ static void queue_motion(int32_t p) {
 
 	queue_pos = p;
 	queue_full = TRUE;
+	uart_send_string("\n\r>");	// Debug
 }
 
 void stepper_init(void) {
@@ -84,11 +86,13 @@ void stepper_set_accel(float a){
 
 void stepper_move_to_pos(int32_t p, uint8_t mode){
 
-	if (mode == ABS) target_pos = p;
-	else if (mode == REL) target_pos += p;
-
-	//discard if position is the same as target
-	if (target_pos == current_pos) return;
+	if (mode == ABS) {
+		if (current_pos == p) return;	//discard if position is the same as target
+		else target_pos = p;
+	} else if (mode == REL) {
+		if (p == 0) return;				//discard if position is the same as target
+		else target_pos = current_pos + p;
+	}
 
 	// Determine how's the motor moving:
 	if (spd == SPEED_HALT) {
@@ -113,23 +117,29 @@ void stepper_move_to_pos(int32_t p, uint8_t mode){
 		if (target_pos >= current_pos) {
 			if (dir == CW) {
 				if ((target_pos - current_pos) < (int32_t)n) {	// stepper too close to target to stop
-					queue_motion(target_pos);
-					target_pos += (int32_t)n;
-					stepper_stop();
+					ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {	// No interrupt should occur
+						queue_motion(target_pos);
+						stepper_stop();
+					}
 				}
 			} else {
-				stepper_stop();
-				queue_motion(target_pos);
+				ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {		//No interrupt should occur
+					queue_motion(target_pos);
+					stepper_stop();
+				}
 			}
 		} else {
 			if (dir == CW) {
-				stepper_stop();
-				queue_motion(target_pos);
+				ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {		//No interrupt should occur
+					queue_motion(target_pos);
+					stepper_stop();
+				}
 			} else {
 				if (abs(target_pos - current_pos) < (int32_t)n) {	// stepper too close to target to stop
-					queue_motion(target_pos);
-					target_pos -= (int32_t)n;
-					stepper_stop();
+					ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {		//No interrupt should occur
+						queue_motion(target_pos);
+						stepper_stop();
+					}
 				}
 			}
 		}
@@ -149,20 +159,24 @@ void stepper_stop(void) {
 		else target_pos = current_pos - (int32_t)n;
 	}
 
+	// debug
 	char str[8];
 	int32_t a = current_pos;
 	int32_t b = (int32_t)n;
 	int32_t c = target_pos;
 
-	ltoa(a, str, 10);
-	uart_send_string("\n\rpos: ");
-	uart_send_string(str);
-	ltoa(b, str, 10);
-	uart_send_string("\n\rn: ");
-	uart_send_string(str);
-	ltoa(c, str, 10);
-	uart_send_string("\n\rtarget: ");
-	uart_send_string(str);
+	NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE){
+		ltoa(a, str, 10);
+		uart_send_string("\n\rpos: ");
+		uart_send_string(str);
+		ltoa(b, str, 10);
+		uart_send_string("\n\rn: ");
+		uart_send_string(str);
+		ltoa(c, str, 10);
+		uart_send_string("\n\rtarget: ");
+		uart_send_string(str);
+	}
+	
 }
 
 //char str[8];
@@ -219,8 +233,7 @@ static void compute_c(void){
 				
 				// check queue:
 				if (queue_full)
-					aux_timer_set(ENABLE, 10);	// software ISR to execute queued movement
-				
+					aux_timer_set(ENABLE, 100);	// software ISR to execute queued movement	
 			}
 			break;
 
@@ -299,8 +312,8 @@ ISR(TIMER0_COMPA_vect) {
 * Miscelaneous Timer
 * Used to generate "software-like" interrupts
 */
-	aux_timer_set(DISABLE, 10);
+	aux_timer_set(DISABLE, 100);
 	stepper_move_to_pos(queue_pos, ABS);
 	queue_full = FALSE;
-	//PORTB |= 1<<PORTB5;
+	uart_send_string("\n\rTMR0");
 }
