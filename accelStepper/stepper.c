@@ -38,6 +38,7 @@ uint8_t queue_full;
 static const float f = 16000000 / 8;
 
 static void compute_c(void);
+static void set_accel(float a);
 
 static void pulse(void){
 
@@ -67,14 +68,14 @@ void stepper_init(void) {
 
 	// minimum counter value to get max speed
 	cmin = 249.0;		// Valid for MODE_EIGHTH_STEPPING and 2MHz clk
-	stepper_set_accel(8000.0);	// Based on the MODE_EIGHTH_STEPPING parameter
+	set_accel(8000.0);	// Based on the MODE_EIGHTH_STEPPING parameter
 	cn = c0;
 	n = 0;
 	spd = SPEED_HALT;
 	queue_full = FALSE;
 }
 
-void stepper_set_accel(float a){
+static void set_accel(float a){
 	
 	c0 = 0.676 * f * sqrt(2.0 / a);		// Correction based on David Austin paper
 
@@ -101,7 +102,8 @@ void stepper_move_to_pos(int32_t p, uint8_t mode){
 		else drv_dir(CCW, &dir);
 			
 		drv_set(ENABLE);
-		speed_timer_set(ENABLE, (uint16_t)c0);
+		cn = c0;
+		speed_timer_set(ENABLE, (uint16_t)cn);
 		pulse();
 		compute_c();	// computes the next cn for the next cycle
 		spd = SPEED_UP;
@@ -179,6 +181,40 @@ void stepper_stop(void) {
 	
 }
 
+int8_t stepper_set_maxspeed_percent(uint8_t speed) {
+
+	// check for a valid value and state
+	// Updates cannot happen while motor is moving!
+	if ((speed > 100) && (spd != SPEED_HALT)) return -1;
+
+	float a, b;
+
+	a = (float)speed;
+	a = a / 100.0;		// percentage
+	b = 8000.0 * a;		// Fraction of max speed
+
+	cmin = (f / b) - 1.0;
+
+	return 0;
+}
+
+int8_t stepper_set_accel_percent(uint8_t accel) {
+
+	// check for a valid value and state
+	// Updates cannot happen while motor is moving!
+	if ((accel > 100) && (spd != SPEED_HALT)) return -1;
+
+	float a, b;
+
+	a = (float)accel;
+	a = a / 100.0;		// percentage
+	b = 8000.0 * a;		// Fraction of max acceleration
+
+	set_accel(b);
+
+	return 0;
+}
+
 //char str[8];
 //uint16_t nv[100];
 //uint16_t cv[100];
@@ -208,7 +244,7 @@ static void compute_c(void){
 
 		case SPEED_FLAT:
 			cn = cmin;
-			if (steps_ahead <= n) {
+			if (steps_ahead <= (int32_t)n) {
 				spd = SPEED_DOWN;
 				cn = cn - (2.0 * cn) / (4.0 * (float)n * (-1.0) + 1.0);
 			}

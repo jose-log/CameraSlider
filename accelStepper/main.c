@@ -22,12 +22,15 @@ int main(void){
 
 	sei();
 	
-	stepper_move_to_pos(-10000, REL);
-	while(current_pos > -5000);
-	stepper_move_to_pos(0, REL);
-	//stepper_stop();
+	stepper_move_to_pos_block(10000, REL);
 	
-	while(1);
+	stepper_set_accel_percent(20);
+	
+	stepper_move_to_pos_block(10000, REL);
+
+	stepper_set_maxspeed_percent(20);
+
+	stepper_move_to_pos_block(10000, REL);
 
 	return 0;
 }
