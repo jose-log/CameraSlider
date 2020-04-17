@@ -3,7 +3,7 @@
 #include "driver.h"
 #include "init.h"
 #include "timers.h"
-#include "stepper.h"
+#include "motor.h"
 #include "uart.h"
 
 #include <util/delay.h>
@@ -18,19 +18,19 @@ int main(void){
 	uart_send_string("\n\r----------------------------------");
 	uart_send_string("\n\rHello World!");
 
-	stepper_init();
+	motor_init();
 
 	sei();
 	
-	stepper_move_to_pos_block(10000, REL);
+	motor_move_to_pos_block(10000, REL);
 	
-	stepper_set_accel_percent(20);
+	motor_set_accel_percent(20);
 	
-	stepper_move_to_pos_block(10000, REL);
+	motor_move_to_pos_block(10000, REL);
 
-	stepper_set_maxspeed_percent(20);
+	motor_set_maxspeed_percent(20);
 
-	stepper_move_to_pos_block(10000, REL);
+	motor_move_to_pos_block(10000, REL);
 
 	return 0;
 }

@@ -10,7 +10,7 @@ PROGRAM = main
 SRC = main.c \
 	  driver.c \
 	  init.c \
-	  stepper.c \
+	  motor.c \
 	  timers.c \
 	  uart.c
 

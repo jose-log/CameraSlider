@@ -1,6 +1,6 @@
 
 
-#include "stepper.h"
+#include "motor.h"
 #include "config.h"
 #include "driver.h"
 #include "timers.h"
@@ -18,8 +18,8 @@
 #define SPEED_DOWN	0xF3
 #define SPEED_HALT 	0xF0
 
-// Stepper structure instance
-stepper_s stepper;
+// motor structure instance
+motor_s motor;
 
 float cn;
 float c0;
@@ -56,7 +56,7 @@ static void queue_motion(int32_t p) {
 	uart_send_string("\n\r>");	// Debug
 }
 
-void stepper_init(void) {
+void motor_init(void) {
 
 	drv_reset();
 	drv_set(ENABLE);
@@ -85,7 +85,7 @@ static void set_accel(float a){
 	uart_send_string(str);
 }
 
-void stepper_move_to_pos(int32_t p, uint8_t mode){
+void motor_move_to_pos(int32_t p, uint8_t mode){
 
 	if (mode == ABS) {
 		if (current_pos == p) return;	//discard if position is the same as target
@@ -118,29 +118,29 @@ void stepper_move_to_pos(int32_t p, uint8_t mode){
 		// 
 		if (target_pos >= current_pos) {
 			if (dir == CW) {
-				if ((target_pos - current_pos) < (int32_t)n) {	// stepper too close to target to stop
+				if ((target_pos - current_pos) < (int32_t)n) {	// motor too close to target to stop
 					ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {	// No interrupt should occur
 						queue_motion(target_pos);
-						stepper_stop();
+						motor_stop();
 					}
 				}
 			} else {
 				ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {		//No interrupt should occur
 					queue_motion(target_pos);
-					stepper_stop();
+					motor_stop();
 				}
 			}
 		} else {
 			if (dir == CW) {
 				ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {		//No interrupt should occur
 					queue_motion(target_pos);
-					stepper_stop();
+					motor_stop();
 				}
 			} else {
-				if (abs(target_pos - current_pos) < (int32_t)n) {	// stepper too close to target to stop
+				if (abs(target_pos - current_pos) < (int32_t)n) {	// motor too close to target to stop
 					ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {		//No interrupt should occur
 						queue_motion(target_pos);
-						stepper_stop();
+						motor_stop();
 					}
 				}
 			}
@@ -148,13 +148,13 @@ void stepper_move_to_pos(int32_t p, uint8_t mode){
 	}
 }
 
-void stepper_move_to_pos_block(int32_t p, uint8_t mode) {
+void motor_move_to_pos_block(int32_t p, uint8_t mode) {
 
-	stepper_move_to_pos(p, mode);
+	motor_move_to_pos(p, mode);
 	while(spd != SPEED_HALT);
 }
 
-void stepper_stop(void) {
+void motor_stop(void) {
 
 	if (spd != SPEED_HALT) {
 		if (dir == CW) target_pos = current_pos + (int32_t)n;
@@ -181,7 +181,7 @@ void stepper_stop(void) {
 	
 }
 
-int8_t stepper_set_maxspeed_percent(uint8_t speed) {
+int8_t motor_set_maxspeed_percent(uint8_t speed) {
 
 	// check for a valid value and state
 	// Updates cannot happen while motor is moving!
@@ -198,7 +198,7 @@ int8_t stepper_set_maxspeed_percent(uint8_t speed) {
 	return 0;
 }
 
-int8_t stepper_set_accel_percent(uint8_t accel) {
+int8_t motor_set_accel_percent(uint8_t accel) {
 
 	// check for a valid value and state
 	// Updates cannot happen while motor is moving!
@@ -349,7 +349,7 @@ ISR(TIMER0_COMPA_vect) {
 * Used to generate "software-like" interrupts
 */
 	aux_timer_set(DISABLE, 100);
-	stepper_move_to_pos(queue_pos, ABS);
+	motor_move_to_pos(queue_pos, ABS);
 	queue_full = FALSE;
 	uart_send_string("\n\rTMR0");
 }
