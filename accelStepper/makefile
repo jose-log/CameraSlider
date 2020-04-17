@@ -36,9 +36,9 @@ AVRDUDE_WRITE_FUSES = lock:w:$(LOCK):m -U efuse:w:$(EFUSE):m -U hfuse:w:$(HFUSE)
 AVRDUDE_READ_FUSES = -U lock:r:-:i -U efuse:r:-:i -U hfuse:r:-:i -U lfuse:r:-:i
 SAFEMODE = -u
 # Fuses
+EFUSE := 0xFD
 HFUSE := 0xDA
 LFUSE := 0xFF
-EFUSE := 0xFD
 LOCK  := 0x3F
 # Fuses (ATmega328p - Arduino Uno)
 #HFUSE := 0xDA

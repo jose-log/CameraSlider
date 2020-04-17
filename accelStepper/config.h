@@ -25,7 +25,6 @@
 #define DRV_MS2_PORT	PORTD
 #define DRV_MS3_PORT	PORTD
 #define DRV_RST_PORT	PORTD
-#define DRV_SLEEP_PORT	PORTD
 #define DRV_STEP_PORT	PORTB
 #define DRV_DIR_PORT	PORTB
 
@@ -34,8 +33,11 @@
 #define DRV_MS2_PIN		PORTD4
 #define DRV_MS3_PIN		PORTD5
 #define DRV_RST_PIN		PORTD6
-#define DRV_SLEEP_PIN	PORTD7
 #define DRV_STEP_PIN	PORTB0
 #define DRV_DIR_PIN		PORTB1
+
+// Movement mode:
+#define ABS 		0xAB
+#define REL			0xEA
 
 #endif

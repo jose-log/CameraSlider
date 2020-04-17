@@ -14,6 +14,8 @@ void boot(void){
 	ports_init();
 	uart_init();
 	uart_set(ENABLE);
+	speed_timer_init();
+	aux_timer_init();
 	
 }
 
@@ -49,12 +51,11 @@ static void ports_init(void){
 
 	DRV_DIR_PORT |= (1<<DRV_DIR_PIN);
 	DRV_STEP_PORT &= ~(1<<DRV_STEP_PIN);
-	DRV_SLEEP_PORT |= (1<<DRV_SLEEP_PIN);
 	DRV_RST_PORT |= (1<<DRV_RST_PIN);
 	DRV_MS3_PORT &= ~(1<<DRV_MS3_PIN);
 	DRV_MS2_PORT &= ~(1<<DRV_MS2_PIN);
 	DRV_MS1_PORT &= ~(1<<DRV_MS1_PIN);
-	DRV_EN_PORT &= ~(1<<DRV_EN_PIN);
+	DRV_EN_PORT |= (1<<DRV_EN_PIN);		// Initially disabled
 
 	// Limit switch pin
 	DDRC &= ~(1<<DDC4);

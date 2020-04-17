@@ -12,10 +12,17 @@ typedef struct {
 } stepper_s;
 
 
-void stepper_init(void (*timer)(uint8_t state, uint16_t t), void (*timer_raw)(uint16_t c));
+void stepper_init(void);
 
-uint8_t stepper_move_to_pos(int32_t p);
+void stepper_set_accel(float a);
 
-void stepper_set_accel(int32_t a);
+void stepper_move_to_pos(int32_t p, uint8_t mode);
+
+void stepper_move_to_pos_block(int32_t p, uint8_t mode);
+
+void stepper_stop(void);
+
+extern volatile int32_t current_pos;
+extern volatile int32_t target_pos;
 
 #endif

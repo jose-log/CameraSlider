@@ -12,7 +12,11 @@
 
 void drv_step_mode(uint8_t mode);
 
-void drv_spin_direction(uint8_t dir);
+void drv_dir(uint8_t dir, uint8_t *var);
+
+void drv_set(uint8_t state);
+
+void drv_reset(void);
 
 extern uint8_t spin;
 
