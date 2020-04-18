@@ -5,14 +5,11 @@
  * Author : josel
  */ 
 
+/******************************************************************************
+*******************	I N C L U D E   D E P E N D E N C I E S	*******************
+******************************************************************************/
+
 #include "config.h"
-#include "driver.h"
-#include "init.h"
-#include "lcd.h"
-#include "menu.h"
-#include "move.h"
-#include "timers.h"
-#include "uart.h"
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -20,26 +17,30 @@
 #include <util/delay.h>
 #include <stdlib.h>
 
+/******************************************************************************
+****************** V A R I A B L E S   D E F I N I T I O N S ******************
+******************************************************************************/
+
 volatile uint8_t tmr = 0;
 
 // Declaration of global structures
 slider_s slider;
 encoder_s encoder;
 btn_s btn;
+
 volatile static state_t system_state = STATE_HOMING;
 volatile uint16_t ms = 0;
 volatile uint8_t speed_update = FALSE;
 
+/******************************************************************************
+*************************** M A I N   P R O G R A M ***************************
+******************************************************************************/
+
 int main(void)
 {
 	boot();
-	lcd_screen(SCREEN_WELCOME);
-	drv_step_mode(MODE_SIXTEENTH_STEP);
-	general_timer_set(ENABLE);
 
-	uart_send_string("Hello World!\n\r");
-	uart_send_string_p(PSTR("This is a ROM-stored string\n\r"));
-
+	// Enable global Interrupts
 	sei();
 
 	// misc vars for retrieved arguments in menu functions

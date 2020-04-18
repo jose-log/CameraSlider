@@ -5,12 +5,79 @@
  *  Author: josel
  */ 
 
-
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
+/******************************************************************************
+*******************	I N C L U D E   D E P E N D E N C I E S	*******************
+******************************************************************************/
+
+#include "menu.h"
+#include "driver.h"
+#include "lcd.h"
+#include "move.h"
+#include "timers.h"
+#include "uart.h"
+#include "util.h"
+
 #include <avr/io.h>
 #include <stdint.h>
+
+/******************************************************************************
+******************* S T R U C T U R E   P R O T O T Y P E S *******************
+******************************************************************************/
+
+typedef struct {
+	volatile uint32_t position;
+	volatile uint16_t speed;
+	volatile uint16_t target_speed;
+	volatile uint8_t marginal_zone;
+	volatile uint8_t out_of_bounds;
+	volatile uint8_t sw;
+	volatile uint8_t spin;
+} slider_s;
+
+typedef struct {
+	volatile uint8_t update;
+	volatile uint8_t dir;
+} encoder_s;
+
+typedef struct {
+	volatile uint8_t query; // flag; query button state
+	uint8_t action;			// flag; button action activated
+	uint8_t lock;			// flag; button locked
+	uint8_t state;			// button state: IDLE, PUSHED, RELEASED
+	uint16_t count;			// time counter
+	uint8_t delay1;			// flag; delay 1 elapsed
+	uint8_t delay2;			// flag; delay 2 elapsed
+	uint8_t delay3;			// flag; delay 3 elapsed
+} btn_s;
+
+/******************************************************************************
+***************** G L O B A L   S C O P E   V A R I A B L E S *****************
+******************************************************************************/
+
+extern slider_s slider;
+extern encoder_s encoder;
+extern btn_s btn;
+extern volatile uint16_t ms;
+extern volatile uint8_t speed_update;
+
+/******************************************************************************
+*******************	C O N S T A N T S  D E F I N I T I O N S ******************
+******************************************************************************/
+
+typedef enum {
+	STATE_HOMING,
+	STATE_CHOOSE_MOVEMENT,
+	STATE_CHOOSE_MANUAL_CONTROL,
+	STATE_CHOOSE_MANUAL_MOVEMENT,
+	STATE_MANUAL_SPEED,
+	STATE_MANUAL_POSITION,
+	STATE_CREATE_MOVEMENT,
+	STATE_TEST_ACCELSTEPPER,
+	STATE_FAIL
+} state_t;
 
 // 16MHz ceramic resonator, no prescaler
 #define F_CPU	16000000UL
@@ -73,49 +140,5 @@
 
 // Debug
 #define DEBUG(x) 	uart_send_string(x);
-
-typedef enum {
-	STATE_HOMING,
-	STATE_CHOOSE_MOVEMENT,
-	STATE_CHOOSE_MANUAL_CONTROL,
-	STATE_CHOOSE_MANUAL_MOVEMENT,
-	STATE_MANUAL_SPEED,
-	STATE_MANUAL_POSITION,
-	STATE_CREATE_MOVEMENT,
-	STATE_TEST_ACCELSTEPPER,
-	STATE_FAIL
-} state_t;
-
-typedef struct {
-	volatile uint32_t position;
-	volatile uint16_t speed;
-	volatile uint16_t target_speed;
-	volatile uint8_t marginal_zone;
-	volatile uint8_t out_of_bounds;
-	volatile uint8_t sw;
-	volatile uint8_t spin;
-} slider_s;
-
-typedef struct {
-	volatile uint8_t update;
-	volatile uint8_t dir;
-} encoder_s;
-
-typedef struct {
-	volatile uint8_t query; // flag; query button state
-	uint8_t action;			// flag; button action activated
-	uint8_t lock;			// flag; button locked
-	uint8_t state;			// button state: IDLE, PUSHED, RELEASED
-	uint16_t count;			// time counter
-	uint8_t delay1;			// flag; delay 1 elapsed
-	uint8_t delay2;			// flag; delay 2 elapsed
-	uint8_t delay3;			// flag; delay 3 elapsed
-} btn_s;
-
-extern slider_s slider;
-extern encoder_s encoder;
-extern btn_s btn;
-extern volatile uint16_t ms;
-extern volatile uint8_t speed_update;
 
 #endif /* CONFIG_H_ */

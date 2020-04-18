@@ -1,6 +1,7 @@
 
-#ifndef DRIVER_H
-#define DRIVER_H
+
+#ifndef STEPPER_H_
+#define STEPPER_H_
 
 /******************************************************************************
 *******************	I N C L U D E   D E P E N D E N C I E S	*******************
@@ -8,33 +9,37 @@
 
 #include "config.h"
 
+#include <stdint.h>
+
+/******************************************************************************
+******************* S T R U C T U R E   P R O T O T Y P E S *******************
+******************************************************************************/
+
+typedef struct {
+	
+} motor_s;
+
 /******************************************************************************
 ***************** G L O B A L   S C O P E   V A R I A B L E S *****************
 ******************************************************************************/
 
-extern uint8_t spin;
-
-/******************************************************************************
-********************** M A C R O S   D E F I N I T I O N **********************
-******************************************************************************/
-
-#define MODE_FULL_STEP 		0
-#define MODE_HALF_STEP		1
-#define MODE_QUARTER_STEP	2
-#define MODE_EIGHTH_STEP	3
-#define MODE_SIXTEENTH_STEP	4
+extern volatile int32_t current_pos;
+extern volatile int32_t target_pos;
 
 /******************************************************************************
 ******************** F U N C T I O N   P R O T O T Y P E S ********************
 ******************************************************************************/
 
-void drv_step_mode(uint8_t mode);
+void motor_init(void);
 
-void drv_spin_direction(uint8_t dir);
+void motor_move_to_pos(int32_t p, uint8_t mode);
 
-void drv_set(uint8_t state);
+void motor_move_to_pos_block(int32_t p, uint8_t mode);
 
-void drv_reset(void);
+void motor_stop(void);
 
-#endif /* DRIVER_H */
+int8_t motor_set_maxspeed_percent(uint8_t speed);
 
+int8_t motor_set_accel_percent(uint8_t accel);
+
+#endif

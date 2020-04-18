@@ -22,15 +22,23 @@ int main(void){
 
 	sei();
 	
+	/*
 	motor_move_to_pos_block(10000, REL);
-	
 	motor_set_accel_percent(20);
-	
 	motor_move_to_pos_block(10000, REL);
-
 	motor_set_maxspeed_percent(20);
-
 	motor_move_to_pos_block(10000, REL);
+	*/
+	motor_move_at_speed(10);
+	_delay_ms(2000);
+	motor_move_at_speed(50);
+	_delay_ms(2000);
+	motor_move_at_speed(100);
+	_delay_ms(2000);
+	motor_move_at_speed(50);
+	_delay_ms(2000);
+	motor_move_at_speed(-100);
+	while(1);
 
 	return 0;
 }

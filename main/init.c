@@ -1,19 +1,21 @@
 
+/******************************************************************************
+*******************	I N C L U D E   D E P E N D E N C I E S	*******************
+******************************************************************************/
 
-#include "config.h"
 #include "init.h"
-#include "external_int.h"
-#include "lcd.h"
-#include "timers.h"
-#include "uart.h"
 
 #include <avr/io.h>
+
+/******************************************************************************
+******************* F U N C T I O N   D E F I N I T I O N S *******************
+******************************************************************************/
 
 static void ports_init(void);
 static void system_defaults(void);
 
-void boot(void){
-
+void boot(void)
+{
 	ports_init();
 	system_defaults();
 	speed_timer_init();
@@ -22,11 +24,18 @@ void boot(void){
 	limit_switch_init();
 	lcd_init();
 	uart_init();
+	
 	uart_set(ENABLE);
+	general_timer_set(ENABLE);
+
+	// Messasges:
+	lcd_screen(SCREEN_WELCOME);
+	uart_send_string("Hello World!\n\r");
+	uart_send_string_p(PSTR("This is a ROM-stored string\n\r"));
 }
 
-static void ports_init(void){
-	
+static void ports_init(void)
+{	
 	// Encoder pins (INT0/1)
 	DDRD &= ~(1<<DDD2);		// INT0
 	DDRD &= ~(1<<DDD3);		// INT1
@@ -57,7 +66,6 @@ static void ports_init(void){
 
 	DRV_DIR_PORT |= (1<<DRV_DIR_PIN);
 	DRV_STEP_PORT &= ~(1<<DRV_STEP_PIN);
-	DRV_SLEEP_PORT |= (1<<DRV_SLEEP_PIN);
 	DRV_RST_PORT |= (1<<DRV_RST_PIN);
 	DRV_MS3_PORT &= ~(1<<DRV_MS3_PIN);
 	DRV_MS2_PORT &= ~(1<<DRV_MS2_PIN);
@@ -75,8 +83,8 @@ static void ports_init(void){
 	PORTD |= (1<<PORTD0);	// initial value HIGH
 }
 
-static void system_defaults(void){
-
+static void system_defaults(void)
+{
 	slider.position = 0;
 	slider.marginal_zone = TRUE;
 	slider.out_of_bounds = FALSE;

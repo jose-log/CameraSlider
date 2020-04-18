@@ -1,12 +1,5 @@
 
-#include "menu.h"
 #include "config.h"
-#include "driver.h"
-#include "lcd.h"
-#include "move.h"
-#include "timers.h"
-#include "uart.h"
-#include "util.h"
 
 #include <avr/pgmspace.h>
 #include <util/delay.h>

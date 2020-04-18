@@ -24,6 +24,8 @@ int8_t motor_set_maxspeed_percent(uint8_t speed);
 
 int8_t motor_set_accel_percent(uint8_t accel);
 
+void motor_move_at_speed(int8_t s);
+
 extern volatile int32_t current_pos;
 extern volatile int32_t target_pos;
 

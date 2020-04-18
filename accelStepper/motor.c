@@ -18,6 +18,8 @@
 #define SPEED_DOWN	0xF3
 #define SPEED_HALT 	0xF0
 
+#define POSITION_CONTROL	0x71
+#define SPEED_CONTROL 		0x70
 // motor structure instance
 motor_s motor;
 
@@ -31,8 +33,12 @@ volatile int32_t current_pos;
 volatile int32_t target_pos;
 uint8_t dir;
 
-int32_t queue_pos;
-uint8_t queue_full;
+static int32_t queue_pos;
+static int8_t queue_speed;
+static uint8_t queue_full;
+
+static uint8_t speed_stop;
+static uint8_t ctl;
 
 // timer frequency: CPU_clk / prescaler
 static const float f = 16000000 / 8;
@@ -54,6 +60,13 @@ static void queue_motion(int32_t p) {
 	queue_pos = p;
 	queue_full = TRUE;
 	uart_send_string("\n\r>");	// Debug
+}
+
+static void queue_speed_motion(int32_t s)
+{
+	queue_speed = s;
+	queue_full = TRUE;
+	uart_send_string("\n\r>>");	// Debug
 }
 
 void motor_init(void) {
@@ -86,6 +99,8 @@ static void set_accel(float a){
 }
 
 void motor_move_to_pos(int32_t p, uint8_t mode){
+
+	ctl = POSITION_CONTROL;
 
 	if (mode == ABS) {
 		if (current_pos == p) return;	//discard if position is the same as target
@@ -215,10 +230,135 @@ int8_t motor_set_accel_percent(uint8_t accel) {
 	return 0;
 }
 
+static float get_cmin(uint8_t percent)
+{
+	// check for a valid value and state
+	if (percent > 100) return -1.0;
+
+	float a, b;
+
+	a = (float)percent;
+	a = a / 100.0;		// percentage
+	b = 8000.0 * a;		// Fraction of max speed
+
+	return (f / b) - 1.0;
+}
 //char str[8];
 //uint16_t nv[100];
 //uint16_t cv[100];
 //uint16_t i = 0;
+float c_target;
+
+void motor_move_at_speed(int8_t s)
+{
+	ctl = SPEED_CONTROL;
+
+	float c;
+	uint8_t newdir;
+
+	if (s > 0) {
+		newdir = CW;
+		c = get_cmin(s);
+	} else if (s < 0) {
+		newdir = CCW;
+		c = get_cmin((-1 * s));	
+	} 
+
+	char str[6];
+	itoa((int16_t)c, str, 10);
+	uart_send_string("\n\rcmin: ");
+	uart_send_string(str);
+	
+	if (spd == SPEED_HALT) {
+		if (newdir == CW) drv_dir(CW, &dir);
+		else if (newdir == CCW) drv_dir(CCW, &dir);
+		drv_set(ENABLE);
+		cn = c0;
+		speed_timer_set(ENABLE, (uint16_t)cn);
+		spd = SPEED_UP;
+		speed_stop = FALSE;
+		cmin = c;
+	} else {
+		if (newdir == CW) {
+			if (dir == CW) {		// if new speed goes in the same rotation direction
+				if (c < cmin) {
+					cmin = c;
+					spd = SPEED_UP;
+				} else if (c > cmin){
+					c_target = c;
+					spd = SPEED_DOWN;
+				}
+			} else if (dir == CCW) {	// if new speed goes in opposite rotation direction
+				ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {		//No interrupt should occur
+					spd = SPEED_DOWN;
+					speed_stop = TRUE;
+					queue_speed_motion(s);
+					motor_stop();
+				}
+			}
+		} else if (newdir == CCW) {
+			if (dir == CW) {
+				ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {		//No interrupt should occur
+					spd = SPEED_DOWN;
+					speed_stop = TRUE;
+					queue_speed_motion(s);
+					motor_stop();
+				}
+			} else if (dir == CCW) {	// if new speed goes in opposite rotation direction
+				if (c < cmin) {
+					cmin = c;
+					spd = SPEED_UP;
+				} else if (c > cmin){
+					c_target = c;
+					spd = SPEED_DOWN;
+				}
+			}
+		}		
+	}
+}
+
+static void compute_c_speed(void)
+{
+	switch (spd) {
+		case SPEED_UP:
+			n++;
+			cn = cn - (2.0 * cn) / (4.0 * (float)n + 1.0);
+			if (cn <= cmin) {
+				cn = cmin;
+				spd = SPEED_FLAT;
+			}
+			break;
+
+		case SPEED_FLAT:
+			cn = cmin;
+			break;
+
+		case SPEED_DOWN:
+			n--;
+			if (n > 0) {
+				cn = cn - (2.0 * cn) / (4.0 * (float)n * (-1.0) + 1.0);
+				if (!speed_stop) {			// if motor is not issued a stop instruction
+					if (cn >= c_target) {
+						cmin = cn;
+						spd = SPEED_FLAT;
+					}
+				}
+			} else {
+				cn = c0;
+				speed_timer_set(DISABLE, (uint16_t)c0);	
+				spd = SPEED_HALT;
+				
+				drv_set(DISABLE);
+
+				if (queue_full)
+					aux_timer_set(ENABLE, 100);	// software ISR to execute queued movement	
+			}
+			break;
+
+		default:
+			break;
+	}
+}
 
 static void compute_c(void){
 
@@ -331,7 +471,8 @@ static void compute_c(void){
 //****************************************************************
 
 
-ISR(TIMER1_COMPA_vect) {
+ISR(TIMER1_COMPA_vect)
+{
 /*
 * Speed Timer.
 */
@@ -339,17 +480,19 @@ ISR(TIMER1_COMPA_vect) {
 	// set the new timing delay (based on computation of cn)
 	speed_timer_set_raw((uint16_t)cn);
 	// compute the timing delay for the next cycle
-	compute_c();
-
+	if (ctl == POSITION_CONTROL) compute_c();
+	else if (ctl == SPEED_CONTROL) compute_c_speed();
 }
 
-ISR(TIMER0_COMPA_vect) {
+ISR(TIMER0_COMPA_vect)
+{
 /*
 * Miscelaneous Timer
 * Used to generate "software-like" interrupts
 */
 	aux_timer_set(DISABLE, 100);
-	motor_move_to_pos(queue_pos, ABS);
+	if (ctl == POSITION_CONTROL) motor_move_to_pos(queue_pos, ABS);
+	else if (ctl == SPEED_CONTROL) motor_move_at_speed(queue_speed);
 	queue_full = FALSE;
 	uart_send_string("\n\rTMR0");
 }
