@@ -8,8 +8,9 @@
 ******************************************************************************/
 
 #include "config.h"
-
-#include <stdint.h>
+#include "driver.h"
+#include "timers.h"
+#include "uart.h"
 
 /******************************************************************************
 ******************* S T R U C T U R E   P R O T O T Y P E S *******************
@@ -23,8 +24,8 @@ typedef struct {
 ***************** G L O B A L   S C O P E   V A R I A B L E S *****************
 ******************************************************************************/
 
-extern volatile int32_t current_pos;
-extern volatile int32_t target_pos;
+#define PROFILE_LINEAR		0x01
+#define PROFILE_QUADRATIC	0x02
 
 /******************************************************************************
 ******************** F U N C T I O N   P R O T O T Y P E S ********************
@@ -35,6 +36,8 @@ void motor_init(void);
 void motor_move_to_pos(int32_t p, uint8_t mode);
 
 void motor_move_to_pos_block(int32_t p, uint8_t mode);
+
+void motor_move_at_speed(int8_t s);
 
 void motor_stop(void);
 

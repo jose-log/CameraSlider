@@ -43,8 +43,9 @@ static uint8_t ctl;
 // timer frequency: CPU_clk / prescaler
 static const float f = 16000000 / 8;
 
+static uint8_t speed_profile;
+
 static void compute_c(void);
-static void set_accel(float a);
 
 static void pulse(void){
 
@@ -81,23 +82,24 @@ void motor_init(void) {
 
 	// minimum counter value to get max speed
 	cmin = 249.0;		// Valid for MODE_EIGHTH_STEPPING and 2MHz clk
-	set_accel(8000.0);	// Based on the MODE_EIGHTH_STEPPING parameter
+	speed_profile = PROFILE_LINEAR;
+	motor_set_accel_percent(100);
 	cn = c0;
 	n = 0;
 	spd = SPEED_HALT;
 	queue_full = FALSE;
 }
 
-static void set_accel(float a){
-	
-	c0 = 0.676 * f * sqrt(2.0 / a);		// Correction based on David Austin paper
-
-	char str[6];
-	ltoa((uint32_t)c0, str, 10);
-	uart_send_string("\n\rc0: ");
-	uart_send_string(str);
+void motor_speed_profile(uint8_t p)
+{
+	if (p == PROFILE_LINEAR) {
+		speed_profile = PROFILE_LINEAR;
+	} else if (p == PROFILE_QUADRATIC) {
+		speed_profile = PROFILE_QUADRATIC;
+	}
+	// whenever the speed profile is chose, maximum acceleration is chosen
+	motor_set_accel_percent(100);
 }
-
 void motor_move_to_pos(int32_t p, uint8_t mode){
 
 	ctl = POSITION_CONTROL;
@@ -196,39 +198,74 @@ void motor_stop(void) {
 	
 }
 
-int8_t motor_set_maxspeed_percent(uint8_t speed) {
+#define SPEED_MAX 		8000.0
 
+int8_t motor_set_maxspeed_percent(uint8_t speed) {
+/*
+* Max speed is mechanically constrained: By testing, higher speeds provoke
+* the motor to run out of sync
+* Min speed is limited by the resolution of the percent given (which is an
+* integer), thus, 1% is the minimum
+*/
 	// check for a valid value and state
 	// Updates cannot happen while motor is moving!
-	if ((speed > 100) && (spd != SPEED_HALT)) return -1;
+	if ((speed > 100) || (speed == 0) || (spd != SPEED_HALT)) return -1;
 
 	float a, b;
 
 	a = (float)speed;
 	a = a / 100.0;		// percentage
-	b = 8000.0 * a;		// Fraction of max speed
+	b = SPEED_MAX * a;		// Fraction of max speed
 
 	cmin = (f / b) - 1.0;
 
 	return 0;
 }
 
-int8_t motor_set_accel_percent(uint8_t accel) {
+#define ACCEL_MAX 		8000.0
+#define ACCEL_MIN 		1862.0
 
+int8_t motor_set_accel_percent(uint8_t accel) {
+/*
+* Acceleration varies between a certain max and min range, determined by the
+* physical constraints:
+* max value: mechanically determined. Higher acceleration values may not
+*	produce the required torque to move the motor shaft
+* min value: the size of the OCR1A register. For a given Timer frequency, 
+* 	lower acceleration values may represent cn values greater than the maximum
+* 	that can be stored in OCR1A.
+* This function changes the value of acceleration and re-computes c0 only
+* for the linear ramp speed profile.
+*/	
 	// check for a valid value and state
 	// Updates cannot happen while motor is moving!
-	if ((accel > 100) && (spd != SPEED_HALT)) return -1;
+	if ((accel > 100) || (spd != SPEED_HALT)) return -1;
 
 	float a, b;
 
 	a = (float)accel;
 	a = a / 100.0;		// percentage
-	b = 8000.0 * a;		// Fraction of max acceleration
+	b = ((ACCEL_MAX - ACCEL_MIN) * a) + ACCEL_MIN;	// acceleration within the allowed range
 
-	set_accel(b);
+	if (speed_profile == PROFILE_LINEAR) {
+		c0 = 0.676 * f * sqrt(2.0 / b);		// Correction based on David Austin paper
+	} else if (speed_profile == PROFILE_QUADRATIC) {
+		// c0 = f * pow((3.0 / a), (1.0/3.0));	// way too high
+		// using the formula produces way too high integers. Thus, only
+		// possible value is the maximum OCR1A can store
+		c0 = 65535.0;
+	}
+	// max c0 value is (2^16)-1
+	if (c0 > 65535.0) c0 =  65535.0;
+
+	char str[6];
+	ltoa((uint16_t)c0, str, 10);
+	uart_send_string("\n\rc0: ");
+	uart_send_string(str);
 
 	return 0;
 }
+
 
 static float get_cmin(uint8_t percent)
 {
@@ -253,8 +290,8 @@ void motor_move_at_speed(int8_t s)
 {
 	ctl = SPEED_CONTROL;
 
-	float c;
-	uint8_t newdir;
+	float c = c0;
+	uint8_t newdir = dir;
 
 	if (s > 0) {
 		newdir = CW;
@@ -317,12 +354,31 @@ void motor_move_at_speed(int8_t s)
 	}
 }
 
+static void next_cn(void)
+{
+	if (speed_profile == PROFILE_LINEAR) {
+		if (spd == SPEED_UP) 
+			cn = cn - (2.0 * cn) / (4.0 * (float)n + 1.0);
+		else 
+			cn = cn - (2.0 * cn) / (4.0 * (float)n * (-1.0) + 1.0);
+	} else if (speed_profile == PROFILE_QUADRATIC) {
+		if (n == 1) {
+			cn = 0.9 * c0;		// correction for quadratic profile. See David Austin paper
+		} else {
+			if (spd == SPEED_UP)
+				cn = cn - (6.0 * cn) / (9.0 * (float)n + 3.0);
+			else
+				cn = cn - (6.0 * cn) / (9.0 * (float)n * (-1.0) + 3.0);
+		}
+	}	
+}
+
 static void compute_c_speed(void)
 {
 	switch (spd) {
 		case SPEED_UP:
 			n++;
-			cn = cn - (2.0 * cn) / (4.0 * (float)n + 1.0);
+			next_cn();
 			if (cn <= cmin) {
 				cn = cmin;
 				spd = SPEED_FLAT;
@@ -336,7 +392,7 @@ static void compute_c_speed(void)
 		case SPEED_DOWN:
 			n--;
 			if (n > 0) {
-				cn = cn - (2.0 * cn) / (4.0 * (float)n * (-1.0) + 1.0);
+				next_cn();
 				if (!speed_stop) {			// if motor is not issued a stop instruction
 					if (cn >= c_target) {
 						cmin = cn;
@@ -375,7 +431,7 @@ static void compute_c(void){
 
 		case SPEED_UP:
 			n++;
-			cn = cn - (2.0 * cn) / (4.0 * (float)n + 1.0);
+			next_cn();
 			if (cn <= cmin) {
 				cn = cmin;
 				spd = SPEED_FLAT;
@@ -386,14 +442,14 @@ static void compute_c(void){
 			cn = cmin;
 			if (steps_ahead <= (int32_t)n) {
 				spd = SPEED_DOWN;
-				cn = cn - (2.0 * cn) / (4.0 * (float)n * (-1.0) + 1.0);
+				next_cn();
 			}
 			break;
 
 		case SPEED_DOWN:
 			n = (uint16_t)steps_ahead;
 			if (n > 0) {
-				cn = cn - (2.0 * cn) / (4.0 * (float)n * (-1.0) + 1.0);
+				next_cn();
 			} else {
 				cn = c0;
 				speed_timer_set(DISABLE, (uint16_t)c0);	

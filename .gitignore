@@ -55,4 +55,7 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
+# Test and analysis files
+*.ods
+
 # End of https://www.gitignore.io/api/c

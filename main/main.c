@@ -30,7 +30,6 @@ btn_s btn;
 
 volatile static state_t system_state = STATE_HOMING;
 volatile uint16_t ms = 0;
-volatile uint8_t speed_update = FALSE;
 
 /******************************************************************************
 *************************** M A I N   P R O G R A M ***************************
@@ -150,11 +149,11 @@ static void pulse(void){
 	_delay_us(2);
 	DRV_STEP_PORT &= ~(1<<DRV_STEP_PIN);
 }
-
-ISR(TIMER1_COMPA_vect){
 /*
-* Speed Timer.
-*/
+ISR(TIMER1_COMPA_vect){
+//
+// Speed Timer.
+//
 	if(system_state == STATE_HOMING){
 		pulse();
 	} else {
@@ -185,7 +184,7 @@ ISR(TIMER1_COMPA_vect){
 	}
 
 }
-
+*/
 ISR(TIMER2_COMPA_vect){
 /*
 * General Timer. T=1ms

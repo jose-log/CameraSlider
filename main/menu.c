@@ -222,33 +222,21 @@ uint8_t manual_speed(uint8_t type){
 			
 			if(slider.out_of_bounds)
 				n = 0;
-			if(encoder.dir) n--;
-			else n++;
+			if(encoder.dir) n -= 5;
+			else n += 5;
 			
+			if(n > 100) n = 100;
+			else if(n < -100) n = -100;
 
-			if(n > 32) n = 32;
-			else if(n < -32) n = -32;
-
-			if(n < 0) drv_spin_direction(CCW);
-			else drv_spin_direction(CW);
-			
-			if(n == 0){
-				speed = 0;
-				speed_set(speed);
+			if((!slider.out_of_bounds) ||
+			   ((slider.spin == CW) && (slider.position < MAX_COUNT)) ||
+			   ((slider.spin == CCW) && (slider.position > 0))){
+				motor_move_at_speed(n);
 			} else {
-				if((!slider.out_of_bounds) ||
-				   ((slider.spin == CW) && (slider.position < MAX_COUNT)) ||
-				   ((slider.spin == CCW) && (slider.position > 0))){
-					if(type == SPEED_LINEAR) 
-						speed = 448/abs(n);
-					else if(type == SPEED_EXPONENTIAL) 
-						speed = pgm_read_word(exponential_speed + abs(n) - 1);
-					speed_set(speed);
-				} else {
-					speed = 0;
-				}
+				motor_move_at_speed(0);
 			}
 			lcd_update_speed(slider.speed);
+			////////////////////////////////////////////////
 		}
 		
 		// this little snippet should be re-arranged. Not elegant.

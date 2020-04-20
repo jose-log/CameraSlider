@@ -83,6 +83,8 @@ typedef enum {
 #define F_CPU	16000000UL
 // A standard baud rate for serial interface
 #define BAUD 	115200UL
+//
+#define F_MOTOR (16000000 / 8)
 
 #define TRUE	1
 #define FALSE	0
