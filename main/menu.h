@@ -3,19 +3,20 @@
 #define MENU_H
 
 #include "config.h"
-#include <stdlib.h>
+#include "encoder.h"
+#include "motor.h"
 
-uint8_t homing(void);
+int8_t homing(void);
 
-state_t choose_movement(void);
+int8_t choose_action(void);
 
-uint8_t choose_manual_control(void);
+int8_t choose_control_type(void);
 
-uint8_t choose_manual_movement(void);
+uint8_t choose_speed_profile(void);
 
-uint8_t manual_speed(uint8_t type);
+uint8_t manual_speed(void);
 
-uint8_t manual_position(uint8_t type);
+uint8_t manual_position(void);
 
 void user_movement(void);
 

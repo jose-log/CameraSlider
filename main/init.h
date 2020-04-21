@@ -8,7 +8,7 @@
 ******************************************************************************/
 
 #include "config.h"
-#include "external_int.h"
+#include "encoder.h"
 #include "lcd.h"
 #include "timers.h"
 #include "uart.h"

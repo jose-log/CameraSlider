@@ -47,11 +47,11 @@ void homing_cycle(void){
 	
 	// spin towards limit switch
 	drv_spin_direction(CCW);
-	speed_timer_set(ENABLE, (480/15));
+	timer_speed_set(ENABLE, (480/15));
 	// Wait until switch is pressed
 	while(!slider.sw);
 	// stop immediately
-	speed_timer_set(DISABLE, 0);
+	timer_speed_set(DISABLE, 0);
 	// wait for 100ms
 	_delay_ms(100);
 	slider.sw = FALSE;
@@ -60,25 +60,25 @@ void homing_cycle(void){
 	// pull-off movement:
 	// get away from the switch to un-press it
 	drv_spin_direction(CW);
-	speed_timer_set(ENABLE, (480/10));
+	timer_speed_set(ENABLE, (480/10));
 	_delay_ms(200);
-	speed_timer_set(DISABLE, 0);
+	timer_speed_set(DISABLE, 0);
 	_delay_ms(50);
 	// approach the switch again, but slower
 	drv_spin_direction(CCW);
-	speed_timer_set(ENABLE, (480/5));
+	timer_speed_set(ENABLE, (480/5));
 	// wait until switch is pressed
 	while(!slider.sw);
 	// stop immediately
-	speed_timer_set(DISABLE, 0);
+	timer_speed_set(DISABLE, 0);
 	// wait for 100ms
 	_delay_ms(100);
 
 	//pull-off again, to avoid permanent contact with the switch
 	drv_spin_direction(CW);
-	speed_timer_set(ENABLE, (480/5));
+	timer_speed_set(ENABLE, (480/5));
 	_delay_ms(200);
-	speed_timer_set(DISABLE, 0);
+	timer_speed_set(DISABLE, 0);
 
 	// ZERO position
 	slider.position = 0;
@@ -94,14 +94,14 @@ void speed_set(uint16_t speed){
 *	  to zero
 */
 	if(speed == 0){
-		speed_timer_set(DISABLE, speed);
+		timer_speed_set(DISABLE, speed);
 	} else {
 		slider.speed = speed;
-		if(check_speed_timer()){
+		if(timer_speed_check()){
 			speed_update = TRUE;
 		} else {
 			slider.speed = speed_limit_correction();
-			speed_timer_set(ENABLE, slider.speed);
+			timer_speed_set(ENABLE, slider.speed);
 		}
 	}
 }

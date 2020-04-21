@@ -9,7 +9,7 @@ PROGRAM = main
 # Source code files
 SRC = main.c \
 	  driver.c \
-	  external_int.c \
+	  encoder.c \
 	  init.c \
 	  lcd.c \
 	  menu.c \

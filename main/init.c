@@ -12,21 +12,20 @@
 ******************************************************************************/
 
 static void ports_init(void);
-static void system_defaults(void);
 
 void boot(void)
 {
 	ports_init();
-	system_defaults();
-	speed_timer_init();
-	general_timer_init();
+	timer_speed_init();
+	timer_general_init();
+	timer_aux_init();
 	encoder_init();
 	limit_switch_init();
 	lcd_init();
 	uart_init();
 	
 	uart_set(ENABLE);
-	general_timer_set(ENABLE);
+	timer_general_set(ENABLE);
 
 	// Messasges:
 	lcd_screen(SCREEN_WELCOME);
@@ -81,27 +80,4 @@ static void ports_init(void)
 	DDRD |= (1<<DDD0);		// RXD
 	PORTD |= (1<<PORTD1);	// initial value HIGH
 	PORTD |= (1<<PORTD0);	// initial value HIGH
-}
-
-static void system_defaults(void)
-{
-	slider.position = 0;
-	slider.marginal_zone = TRUE;
-	slider.out_of_bounds = FALSE;
-	slider.sw = FALSE;
-	slider.spin = CW;
-	slider.speed = 0;
-	slider.target_speed = 0;
-
-	encoder.update = FALSE;
-	encoder.dir = CW;
-
-	btn.query = FALSE;
-	btn.action = FALSE;
-	btn.lock = FALSE;
-	btn.state = BTN_IDLE;
-	btn.count = 0;
-	btn.delay1 = FALSE;
-	btn.delay2 = FALSE;
-	btn.delay3 = FALSE;
 }

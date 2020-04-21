@@ -1,13 +1,9 @@
-/*
- * lcd.h
- *
- * Created: 15-Oct-18 9:25:55 PM
- *  Author: josel
- */ 
-
 
 #ifndef LCD_H_
 #define LCD_H_
+
+#include "motor.h"
+#include "config.h"
 
 #include <stdint.h>
 
@@ -22,10 +18,7 @@ enum {
 	SCREEN_WELCOME,
 	SCREEN_HOMING,
 	SCREEN_HOMING_DONE,
-	SCREEN_LINEAR_SPEED,
-	SCREEN_EXPONENTIAL_SPEED,
-	SCREEN_LINEAR_POSITION,
-	SCREEN_EXPONENTIAL_POSITION,
+	SCREEN_MOTOR_PARAMS,
 	SCREEN_CHOOSE_MOVEMENT,
 	SCREEN_CHOOSE_MANUAL_CONTROL,
 	SCREEN_CHOOSE_MANUAL_MOVEMENT,
@@ -41,7 +34,7 @@ void lcd_clear_screen(void);
 
 void lcd_screen(uint8_t screen);
 void lcd_update_speed(uint16_t speed);
-void lcd_update_position(uint32_t pos);
+void lcd_update_position(int32_t pos);
 
 // debug ----------
 void lcd_update_cnt(uint8_t cnt);

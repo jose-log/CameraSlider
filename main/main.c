@@ -18,15 +18,24 @@
 #include <stdlib.h>
 
 /******************************************************************************
-****************** V A R I A B L E S   D E F I N I T I O N S ******************
+*******************	C O N S T A N T S  D E F I N I T I O N S ******************
 ******************************************************************************/
 
-volatile uint8_t tmr = 0;
+typedef enum {
+	STATE_HOMING,
+	STATE_CHOOSE_ACTION,
+	STATE_CHOOSE_CONTROL_TYPE,
+	STATE_CHOOSE_SPEED_PROFILE,
+	STATE_MANUAL_SPEED,
+	STATE_MANUAL_POSITION,
+	STATE_CREATE_MOVEMENT,
+	STATE_TEST_ACCELSTEPPER,
+	STATE_FAIL
+} state_t;
 
-// Declaration of global structures
-slider_s slider;
-encoder_s encoder;
-btn_s btn;
+/******************************************************************************
+****************** V A R I A B L E S   D E F I N I T I O N S ******************
+******************************************************************************/
 
 volatile static state_t system_state = STATE_HOMING;
 volatile uint16_t ms = 0;
@@ -43,48 +52,94 @@ int main(void)
 	sei();
 
 	// misc vars for retrieved arguments in menu functions
-	uint8_t x = FALSE;
-	uint8_t y = FALSE;
+	int8_t x;
 
 	while(TRUE){
 
+		/*
+		* SYSTEM MENU STRUCTURE:
+		*
+		* - Create Movement: (under construction)
+		* - Manual Movement:
+		* 	- Position control
+		*		- Linear profile
+		*		- Quadratic profile
+		*	- Speed control
+		*		- Linear profile
+		*		- Quadratic profile
+		*/
 		switch(system_state){
 
+			/* 
+			* HOMING. Initial positioning sequence to place the slider at the
+			* beginning of the rails, and set the reference position for all
+			* other movements.
+			*/
 			case STATE_HOMING:
-				x = homing();
-				if(!x) system_state = STATE_CHOOSE_MOVEMENT;
+				if(!homing()) system_state = STATE_CHOOSE_ACTION;
 				else system_state = STATE_FAIL;
 				break;
 
-			case STATE_CHOOSE_MOVEMENT:		// Automatic or Manual movement
-				system_state = choose_movement();
+			/*
+			* CHOOSE ACTION: Two options are displayed:
+			*	- Create movement: Create a movement profile to be executed
+			*		automatically by the slider
+			* 	- Manual movement: real-time control of the slider by using
+			*		the rotary encoder
+			*/
+			case STATE_CHOOSE_ACTION:		// Automatic or Manual movement
+				if (choose_action()) system_state = STATE_CHOOSE_CONTROL_TYPE;
+				else system_state = STATE_CREATE_MOVEMENT;
 				break;
 
-			case STATE_CHOOSE_MANUAL_CONTROL:
-				y = choose_manual_control();
-				system_state = STATE_CHOOSE_MANUAL_MOVEMENT;
+			/*
+			* CONTROL TYPE: Two options are displayed:
+			* 	- Position control: encoder varies the slider position 
+			* 	- Speed control: encoder varies the slider speed
+			*/
+			case STATE_CHOOSE_CONTROL_TYPE:
+				x = choose_control_type();
+				if (x < 0) system_state = STATE_FAIL;
+				else system_state = STATE_CHOOSE_SPEED_PROFILE;
 				break;
 
-			case STATE_CHOOSE_MANUAL_MOVEMENT:
-				x = choose_manual_movement();
-				if(x == QUIT_MENU){
-					system_state = STATE_CHOOSE_MOVEMENT;	
+			/*
+			* CHOOSE SPEED PROFILE: Two options are displayed:
+			* 	- Linear: Speed increases/decreases linearly
+			* 	- Quadratic: Speed increases/decreases as in a squared function
+			* 		This profile is less sensible at low speeds and more
+			*		sensible at high speeds
+			*/
+			case STATE_CHOOSE_SPEED_PROFILE:
+				if(choose_speed_profile() < 0){
+					system_state = STATE_CHOOSE_ACTION;	
 				} else {
-					if(y == CONTROL_SPEED) system_state = STATE_MANUAL_SPEED;
-					else if(y == CONTROL_POS) system_state = STATE_MANUAL_POSITION;
+					if(x == 1) system_state = STATE_MANUAL_POSITION;
+					else if(x == 0) system_state = STATE_MANUAL_SPEED;
 				}
 				break;
 
+			/*
+			* SPEED CONTROL: MOTOR CAN BE MOVED and the rotary encoder changes
+			*	its velocity
+			*/
 			case STATE_MANUAL_SPEED:
-				manual_speed(x);
-				system_state = STATE_CHOOSE_MOVEMENT;
+				manual_speed();
+				system_state = STATE_CHOOSE_ACTION;
 				break;
 
+			/*
+			* POSITION CONTROL: MOTOR CAN BE MOVED and the rotary encoder 
+			*	changes its position
+			*/
 			case STATE_MANUAL_POSITION:
-				manual_position(x);
-				system_state = STATE_CHOOSE_MOVEMENT;
+				manual_position();
+				system_state = STATE_CHOOSE_ACTION;
 				break;
 
+			/*
+			* CREATE MOVEMENT: under construction
+			*/
 			case STATE_CREATE_MOVEMENT:
 				user_movement();
 				system_state = STATE_FAIL;
@@ -97,7 +152,7 @@ int main(void)
 			case STATE_FAIL:
 				fail_message();
 				_delay_ms(1000);
-				system_state = STATE_CHOOSE_MOVEMENT;
+				system_state = STATE_CHOOSE_ACTION;
 				break;
 			
 			default:
@@ -115,76 +170,9 @@ int main(void)
 ******************************************************************************/
 
 /*-----------------------------------------------------------------------------
-                    E X T E R N A L   I N T E R R U P T S
------------------------------------------------------------------------------*/
-
-ISR(INT0_vect){
-	
-	encoder.update = TRUE;
-
-	if(PIND & (1<<PIND3))
-		encoder.dir = CW;
-	else
-		encoder.dir = CCW;
-}
-
-ISR(PCINT1_vect){
-/*
-	BTN - PC3 - PCINT11 | -> PCI1 (Encoder push button)
-	SW	- PC4 - PCINT12 | -> PCI1 (Slider Limit Switch)
-*/
-    if((!SWITCH) && (!slider.sw))
-    	slider.sw = TRUE;
-    if((!BUTTON) && (!btn.lock))
-        btn.query = TRUE;
-}
-
-/*-----------------------------------------------------------------------------
                    		 T I M E R   C O U N T E R S
 -----------------------------------------------------------------------------*/
 
-static void pulse(void){
-
-	DRV_STEP_PORT |= (1<<DRV_STEP_PIN);
-	_delay_us(2);
-	DRV_STEP_PORT &= ~(1<<DRV_STEP_PIN);
-}
-/*
-ISR(TIMER1_COMPA_vect){
-//
-// Speed Timer.
-//
-	if(system_state == STATE_HOMING){
-		pulse();
-	} else {
-		// speed limit correction based on position
-		slider.speed = speed_limit_correction();
-
-		if((speed_update) || (slider.marginal_zone)){
-			OCR1A = slider.speed;
-			speed_update = FALSE;
-		}
-		if(slider.spin == CW){
-			if(slider.position < MAX_COUNT){
-				pulse();
-				slider.position++;
-				slider.out_of_bounds = FALSE;
-			} else {
-				slider.out_of_bounds = TRUE;
-			}
-		} else if(slider.spin == CCW){
-			if(slider.position > 0){
-				pulse();
-				slider.position--;	
-				slider.out_of_bounds = FALSE;
-			} else {
-				slider.out_of_bounds = TRUE;
-			}
-		}
-	}
-
-}
-*/
 ISR(TIMER2_COMPA_vect){
 /*
 * General Timer. T=1ms

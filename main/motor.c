@@ -21,9 +21,6 @@
 #define SPEED_DOWN	0xF3
 #define SPEED_HALT 	0xF0
 
-#define POSITION_CONTROL	0x71
-#define SPEED_CONTROL 		0x70
-
 #define SPEED_MAX 		8000.0		// Valid for MODE_EIGHTH_STEP
 #define ACCEL_MAX 		8000.0		// Valid for MODE_EIGHTH_STEP
 #define ACCEL_MIN 		1862.0		// Valid for 2MHz timer frequency
@@ -31,9 +28,6 @@
 /******************************************************************************
 ****************** V A R I A B L E S   D E F I N I T I O N S ******************
 ******************************************************************************/
-
-// motor structure instance
-motor_s motor;
 
 static float cn;
 static float c0;
@@ -86,22 +80,7 @@ void motor_init(void)
 	queue_full = FALSE;
 }
 
-void motor_move_to_pos_block(int32_t p, uint8_t mode) 
-{
-	motor_move_to_pos(p, mode);
-	while(state != SPEED_HALT);
-}
-
-void motor_stop(void) 
-{
-
-	if (state != SPEED_HALT) {
-		if (dir == CW) target_pos = current_pos + (int32_t)n;
-		else target_pos = current_pos - (int32_t)n;
-	}
-}
-
-void motor_speed_profile(uint8_t p)
+void motor_set_speed_profile(uint8_t p)
 {
 	if (p == PROFILE_LINEAR) {
 		speed_profile = PROFILE_LINEAR;
@@ -177,11 +156,48 @@ int8_t motor_set_accel_percent(uint8_t accel)
 	return 0;
 }
 
+uint16_t motor_get_speed(void)
+{
+	return timer_speed_get();
+}
+
+uint8_t motor_get_profile(void)
+{
+	return speed_profile;
+}
+
+uint8_t motor_get_control(void)
+{
+	return ctl;
+}
+
+int32_t motor_get_position(void)
+{
+	return current_pos;
+}
+
+void motor_stop(void) 
+{
+	if (state != SPEED_HALT) {
+		if (dir == CW) target_pos = current_pos + (int32_t)n;
+		else target_pos = current_pos - (int32_t)n;
+	}
+}
+
 void motor_move_to_pos(int32_t p, uint8_t mode)
 {
 	if (mode == ABS) {
-		if (current_pos == p) return;	//discard if position is the same as target
-		else target_pos = p;
+		if (current_pos == p) {
+			return;	//discard if position is the same as target
+		} else {
+			// Check valid target position (avoid crashing the slider)
+			if ((target_pos <= MAX_COUNT) && (target_pos >= 0))
+				target_pos = p;
+			else if (target_pos > MAX_COUNT)
+				target_pos = MAX_COUNT;
+			else if (target_pos < 0)
+				target_pos = 0;
+		}
 	} else if (mode == REL) {
 		if (p == 0) return;				//discard if position is the same as target
 		else target_pos = current_pos + p;
@@ -195,7 +211,7 @@ void motor_move_to_pos(int32_t p, uint8_t mode)
 			
 		drv_set(ENABLE);
 		cn = c0;
-		speed_timer_set(ENABLE, (uint16_t)cn);
+		timer_speed_set(ENABLE, (uint16_t)cn);
 		pulse();
 		compute_c_position();	// computes the next cn for the next cycle
 		state = SPEED_UP;
@@ -240,6 +256,12 @@ void motor_move_to_pos(int32_t p, uint8_t mode)
 	}
 }
 
+void motor_move_to_pos_block(int32_t p, uint8_t mode) 
+{
+	motor_move_to_pos(p, mode);
+	while(state != SPEED_HALT);
+}
+
 void motor_move_at_speed(int8_t s)
 {
 	ctl = SPEED_CONTROL;
@@ -263,7 +285,7 @@ void motor_move_at_speed(int8_t s)
 			else if (newdir == CCW) drv_dir(CCW, &dir);
 			drv_set(ENABLE);
 			cn = c0;
-			speed_timer_set(ENABLE, (uint16_t)cn);
+			timer_speed_set(ENABLE, (uint16_t)cn);
 			state = SPEED_UP;
 			speed_stop = FALSE;
 			cmin = c;
@@ -318,7 +340,6 @@ void motor_move_at_speed(int8_t s)
 
 static void compute_c_position(void)
 {
-
 	int32_t steps_ahead = labs(target_pos - current_pos);
 
 	if (steps_ahead > (int32_t)n) {
@@ -353,14 +374,14 @@ static void compute_c_position(void)
 				next_cn();
 			} else {
 				cn = c0;
-				speed_timer_set(DISABLE, (uint16_t)c0);	
+				timer_speed_set(DISABLE, (uint16_t)c0);	
 				state = SPEED_HALT;
 				
 				drv_set(DISABLE);
 				
 				// check queue:
 				if (queue_full)
-					aux_timer_set(ENABLE, 100);	// software ISR to execute queued movement	
+					timer_aux_set(ENABLE, 100);	// software ISR to execute queued movement	
 			}
 			break;
 
@@ -371,6 +392,13 @@ static void compute_c_position(void)
 
 static void compute_c_speed(void)
 {
+	// limits of the slider: avoid crashing with the boundaries
+	if ((current_pos <= n) && (dir == CCW)) {
+		state = SPEED_DOWN;
+	} else if (((MAX_COUNT - current_pos) <= n) && (dir == CW)) {
+		state = SPEED_DOWN;
+	}
+
 	switch (state) {
 		case SPEED_UP:
 			n++;
@@ -397,13 +425,13 @@ static void compute_c_speed(void)
 				}
 			} else {
 				cn = c0;
-				speed_timer_set(DISABLE, (uint16_t)c0);	
+				timer_speed_set(DISABLE, (uint16_t)c0);	
 				state = SPEED_HALT;
 				
 				drv_set(DISABLE);
 
 				if (queue_full)
-					aux_timer_set(ENABLE, 100);	// software ISR to execute queued movement	
+					timer_aux_set(ENABLE, 100);	// software ISR to execute queued movement	
 			}
 			break;
 
@@ -447,7 +475,6 @@ static float get_cmin(uint8_t percent)
 
 static void queue_position_motion(int32_t p) 
 {
-
 	queue_pos = p;
 	queue_full = TRUE;
 	uart_send_string("\n\r>");	// Debug
@@ -462,7 +489,6 @@ static void queue_speed_motion(int8_t s)
 
 static void pulse(void) 
 {
-
 	DRV_STEP_PORT |= (1<<DRV_STEP_PIN);
 	_delay_us(2);
 	DRV_STEP_PORT &= ~(1<<DRV_STEP_PIN);
@@ -489,7 +515,7 @@ ISR(TIMER1_COMPA_vect)
 */
 	pulse();
 	// set the new timing delay (based on computation of cn)
-	speed_timer_set_raw((uint16_t)cn);
+	timer_speed_set_raw((uint16_t)cn);
 	// compute the timing delay for the next cycle
 	if (ctl == POSITION_CONTROL) compute_c_position();
 	else if (ctl == SPEED_CONTROL) compute_c_speed();
@@ -501,7 +527,7 @@ ISR(TIMER0_COMPA_vect)
 * Miscelaneous Timer
 * Used to generate "software-like" interrupts
 */
-	aux_timer_set(DISABLE, 100);
+	timer_aux_set(DISABLE, 100);
 	if (ctl == POSITION_CONTROL) motor_move_to_pos(queue_pos, ABS);
 	else if (ctl == SPEED_CONTROL) motor_move_at_speed(queue_speed);
 	queue_full = FALSE;

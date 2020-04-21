@@ -6,7 +6,6 @@
  */ 
 
 #include "lcd.h"
-#include "config.h"
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -16,16 +15,16 @@ const uint8_t ascii_table[] = {
 	0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39
 };
 
-static void lcd_enable(void){
-
+static void lcd_enable(void)
+{
 	PORTB |= (1<<PORTB4);
 	_delay_us(1);
 	PORTB &= ~(1<<PORTB4);
 	_delay_us(1);
 }
 
-static void lcd_send_nibble(uint8_t rs, uint8_t data){
-
+static void lcd_send_nibble(uint8_t rs, uint8_t data)
+{
 	// RS
 	if(rs) PORTB |= (1<<PORTB2);
 	else PORTB &= ~(1<<PORTB2);
@@ -46,8 +45,8 @@ static void lcd_send_nibble(uint8_t rs, uint8_t data){
 	lcd_enable();
 }
 
-void lcd_send_byte(uint8_t rs, uint8_t data){
-
+void lcd_send_byte(uint8_t rs, uint8_t data)
+{
 	uint8_t nibble;
 	nibble = (data >> 4);
 	lcd_send_nibble(rs, nibble);
@@ -56,8 +55,8 @@ void lcd_send_byte(uint8_t rs, uint8_t data){
 	_delay_us(40);
 }
 
-void lcd_init(void){
-
+void lcd_init(void)
+{
 	_delay_ms(15);
 	lcd_send_nibble(0, 0x3);
 	_delay_ms(5);
@@ -76,21 +75,21 @@ void lcd_init(void){
 	lcd_send_byte(0, LCD_DISPLAY_ON);
 }
 
-void lcd_write_char(char c){
-	
+void lcd_write_char(char c)
+{	
 	lcd_send_byte(1, c);
 }
 
-void lcd_write_str(char *c){
-	
+void lcd_write_str(char *c)
+{
 	while(*c != '\0'){
 		lcd_write_char(*c);
 		c++;
 	}
 }
 
-void lcd_set_cursor(uint8_t row, uint8_t column){
-
+void lcd_set_cursor(uint8_t row, uint8_t column)
+{
 	uint8_t addr;
 	
 	if(row != 0) addr = 0x40 + column;
@@ -100,14 +99,14 @@ void lcd_set_cursor(uint8_t row, uint8_t column){
 	_delay_ms(5);
 }
 
-void lcd_clear_screen(void){
-
+void lcd_clear_screen(void)
+{
 	lcd_send_byte(0, LCD_CLEAR_DISPLAY);
 	_delay_ms(2);
 }
 
-void lcd_welcome_screen(void){
-
+void lcd_welcome_screen(void)
+{
 	lcd_set_cursor(0,2);
 	lcd_write_str("Slider PRO");
 	lcd_set_cursor(1,1);
@@ -115,8 +114,8 @@ void lcd_welcome_screen(void){
 	_delay_ms(1000);
 }
 
-void lcd_screen(uint8_t screen){
-
+void lcd_screen(uint8_t screen)
+{
 	switch(screen){
 
 		case SCREEN_WELCOME:
@@ -139,65 +138,60 @@ void lcd_screen(uint8_t screen){
 			_delay_ms(1000);
 			break;
 	
-		case SCREEN_LINEAR_SPEED:
-			lcd_clear_screen();	
-			lcd_set_cursor(0,10);
-			lcd_write_str("linear");
-			lcd_set_cursor(1,0);
-			lcd_write_str("Speed:");
-			lcd_set_cursor(1,11);
-			lcd_write_str("cms/s");
-			break;
-
-		case SCREEN_EXPONENTIAL_SPEED:
-			lcd_clear_screen();	
-			lcd_set_cursor(0,5);
-			lcd_write_str("exponential");
-			lcd_set_cursor(1,0);
-			lcd_write_str("Speed:");
-			lcd_set_cursor(1,11);
-			lcd_write_str("cms/s");
-			break;
-
-		case SCREEN_LINEAR_POSITION:
-			lcd_clear_screen();	
-			lcd_set_cursor(0,10);
-			lcd_write_str("linear");
-			lcd_set_cursor(1,0);
-			lcd_write_str("Pos:");
-			lcd_set_cursor(1,8);
-			lcd_write_str("mm");
+		case SCREEN_MOTOR_PARAMS:
+			uint8_t pro = motor_get_profile();
+			uint8_t ctl = motor_get_control();
+			
+			lcd_clear_screen();
+			if (ctl == POSITION_CONTROL) {
+				lcd_set_cursor(1,0);
+				lcd_write_str("Pos:");
+				lcd_set_cursor(1,8);
+				lcd_write_str("mm");
+			} else if (ctl == SPEED_CONTROL) {
+				lcd_set_cursor(1,0);
+				lcd_write_str("Speed:");
+				lcd_set_cursor(1,11);
+				lcd_write_str("cms/s");
+			}
+			if (tmp == PROFILE_LINEAR) {
+				lcd_set_cursor(0,10);
+				lcd_write_str("linear");
+			} else if (tmp == PROFILE_LINEAR) {
+				lcd_set_cursor(0,7);
+				lcd_write_str("quadratic");
+			}
 			break;
 
 		case SCREEN_EXPONENTIAL_POSITION:
 			lcd_clear_screen();	
-			lcd_set_cursor(0,5);
-			lcd_write_str("exponential");
+			lcd_set_cursor(0,7);
+			lcd_write_str("quadratic");
 			lcd_set_cursor(1,0);
 			lcd_write_str("Pos:");
 			lcd_set_cursor(1,8);
 			lcd_write_str("mm");
 			break;
 
-		case SCREEN_CHOOSE_MOVEMENT:
+		case STATE_CHOOSE_ACTION:
 			lcd_clear_screen();
 			lcd_write_str(">Create Movement");
 			lcd_set_cursor(1,0);
 			lcd_write_str(" Manual Movement");
 			break;
 
-		case SCREEN_CHOOSE_MANUAL_CONTROL:
+		case STATE_CHOOSE_CONTROL_TYPE:
 			lcd_clear_screen();
 			lcd_write_str(">Position ctl.");
 			lcd_set_cursor(1,0);
 			lcd_write_str(" Speed ctl.");
 			break;
 
-		case SCREEN_CHOOSE_MANUAL_MOVEMENT:
+		case SCREEN_CHOOSE_SPEED_PROFILE:
 			lcd_clear_screen();
 			lcd_write_str("> Linear");
 			lcd_set_cursor(1,0);
-			lcd_write_str("  Exponential");
+			lcd_write_str("  Quadratic");
 			break;
 
 		case SCREEN_FAIL_MESSAGE:
@@ -209,24 +203,24 @@ void lcd_screen(uint8_t screen){
 	}
 }
 
-#define TIMER_FREQUENCY  	250.0e3
-#define PULSES_PER_REV 		3.2e3
-#define CMS_PER_REVOL 		4.0
-
-void lcd_update_speed(uint16_t speed){
-
+void lcd_update_speed(uint16_t speed)
+{
 	// used to convert OCR1A value to cms_per_second
 	float freq, rps, f_speed;
 	// used to display speed
 	uint8_t integer, decimal;
 	char integer_str[5], decimal_str[5];
 	float float_part;
+	// system constants
+	static const float f_motor = (float)F_MOTOR;
+	static const float steps_per_rev = (float)STEPS_PER_REV;
+	static const float cms_per_rev = (float)CMS_PER_REV;
 
 	f_speed = (float)speed;
 	if(speed != 0){
-		freq = TIMER_FREQUENCY/(f_speed + 1.0);	// pulses frequency
-		rps = freq / PULSES_PER_REV;			// revolutions per second
-		f_speed = rps * CMS_PER_REVOL;			// centimeters per second
+		freq = f_motor/(f_speed + 1.0);		// pulses frequency
+		rps = freq / steps_per_rev;			// revolutions per second
+		f_speed = rps * cms_per_rev;		// centimeters per second
 	}
 
 	integer = (uint8_t)f_speed;				// Extract integer part
@@ -246,8 +240,8 @@ void lcd_update_speed(uint16_t speed){
 	lcd_write_str(decimal_str);
 }
 
-void lcd_update_position(uint32_t pos) {
-
+void lcd_update_position(int32_t pos)
+{
 	// used to display speed
 	char str[5];
 	
@@ -266,8 +260,8 @@ void lcd_update_position(uint32_t pos) {
 
 // debug ------------
 
-void lcd_update_cnt(uint8_t cnt){
-
+void lcd_update_cnt(uint8_t cnt)
+{
 	lcd_set_cursor(0,0);
 	uint8_t h, t, u;
 
