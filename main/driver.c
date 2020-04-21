@@ -9,29 +9,6 @@
 #include <util/delay.h>
 
 /******************************************************************************
-*******************	C O N S T A N T S  D E F I N I T I O N S ******************
-******************************************************************************/
-
-// DRIVER ports
-#define DRV_EN_PORT 	PORTD
-#define DRV_MS1_PORT 	PORTC
-#define DRV_MS2_PORT	PORTD
-#define DRV_MS3_PORT	PORTD
-#define DRV_RST_PORT	PORTD
-#define DRV_SLEEP_PORT	PORTD
-#define DRV_STEP_PORT	PORTB
-#define DRV_DIR_PORT	PORTB
-
-#define DRV_EN_PIN 		PORTD7
-#define DRV_MS1_PIN 	PORTC5
-#define DRV_MS2_PIN		PORTD4
-#define DRV_MS3_PIN		PORTD5
-#define DRV_RST_PIN		PORTD6
-#define DRV_SLEEP_PIN	PORTD7
-#define DRV_STEP_PIN	PORTB0
-#define DRV_DIR_PIN		PORTB1
-
-/******************************************************************************
 ******************** F U N C T I O N   P R O T O T Y P E S ********************
 ******************************************************************************/
 
@@ -77,14 +54,14 @@ void drv_step_mode(uint8_t mode)
 	}
 }
 
-void drv_spin_direction(uint8_t dir)
+void drv_dir(uint8_t dir, volatile uint8_t *var)
 {
-	if(dir) {
-		slider.spin = CW;
+	if(dir == CW) {
 		DRV_DIR_PORT |= (1<<DRV_DIR_PIN);
+		*var = CW;
 	} else {
-		slider.spin = CCW;
 		DRV_DIR_PORT &= ~(1<<DRV_DIR_PIN);
+		*var = CCW;
 	}
 }
 

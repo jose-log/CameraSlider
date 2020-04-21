@@ -1,4 +1,5 @@
 
+
 #include "menu.h"
 
 #include <avr/pgmspace.h>
@@ -24,11 +25,11 @@ int8_t choose_action(void){
 */
 	uint8_t toggle = FALSE;
 	uint16_t x;
-	int8_t out;
+	int8_t out = 0;
 	struct btn_s *btn = button_get();
 	struct enc_s *encoder = encoder_get();
 
-	lcd_screen(SCREEN_CHOOSE_MOVEMENT);
+	lcd_screen(SCREEN_CHOOSE_ACTION);
 
 	while(TRUE){
 
@@ -46,14 +47,12 @@ int8_t choose_action(void){
 				lcd_write_str(" ");
 				lcd_set_cursor(1,0);
 				lcd_write_str(">");
-				state = STATE_CHOOSE_MANUAL_CONTROL;
 				out = 1;
 			} else {
 				lcd_set_cursor(0,0);
 				lcd_write_str(">");
 				lcd_set_cursor(1,0);
 				lcd_write_str(" ");
-				state = STATE_CREATE_MOVEMENT;
 				out = 0;
 			}
 		}
@@ -77,12 +76,12 @@ int8_t choose_control_type(void){
 */
 	uint8_t toggle = FALSE;
 	uint16_t x;
-	int8_t out;
+	int8_t out = 0;
 	struct btn_s *btn = button_get();
 	struct enc_s *encoder = encoder_get();
 	
 	// LCD screen
-	lcd_screen(SCREEN_CHOOSE_MANUAL_CONTROL);
+	lcd_screen(SCREEN_CHOOSE_CONTROL_TYPE);
 
 	while(TRUE){
 
@@ -136,9 +135,10 @@ int8_t choose_speed_profile(void){
 	int8_t out = 0;
 	uint16_t x;
 	struct btn_s *btn = button_get();
+	struct enc_s *encoder = encoder_get();
 	
 	// LCD screen
-	lcd_screen(SCREEN_CHOOSE_MANUAL_MOVEMENT);
+	lcd_screen(SCREEN_CHOOSE_SPEED_PROFILE);
 
 	while(TRUE){
 
@@ -210,7 +210,7 @@ int8_t manual_speed(void)
 			else if (encoder->dir == CCW) i -= 5;
 			
 			if(i > 100) i = 100;
-			else if(n < -100) i = -100;
+			else if(i < -100) i = -100;
 
 			motor_move_at_speed(i);
 		}

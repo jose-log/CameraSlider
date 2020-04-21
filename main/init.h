@@ -8,6 +8,7 @@
 ******************************************************************************/
 
 #include "config.h"
+#include "driver.h"
 #include "encoder.h"
 #include "lcd.h"
 #include "timers.h"

@@ -25,6 +25,8 @@
 #define ACCEL_MAX 		8000.0		// Valid for MODE_EIGHTH_STEP
 #define ACCEL_MIN 		1862.0		// Valid for 2MHz timer frequency
 
+#define CMIN_EIGHTH_STEPPING 	249.0
+
 /******************************************************************************
 ****************** V A R I A B L E S   D E F I N I T I O N S ******************
 ******************************************************************************/
@@ -58,7 +60,7 @@ static void compute_c_position(void);
 static void pulse(void);
 static void queue_position_motion(int32_t p);
 static void queue_speed_motion(int8_t s);
-static void set_accel(float a);
+static float get_cmin(uint8_t percent);
 static void next_cn(void);
 
 void motor_init(void)
@@ -134,7 +136,7 @@ int8_t motor_set_accel_percent(uint8_t accel)
 */	
 	// check for a valid value and state
 	// Updates cannot happen while motor is moving!
-	if ((accel > 100) || (speed != SPEED_HALT)) return -1;
+	if ((accel > 100) || (state != SPEED_HALT)) return -1;
 
 	float a, b;
 
@@ -174,6 +176,16 @@ uint8_t motor_get_control(void)
 int32_t motor_get_position(void)
 {
 	return current_pos;
+}
+
+void motor_set_position(int32_t p)
+{
+	current_pos = p;
+}
+
+volatile uint8_t *motor_get_dir(void)
+{
+	return &dir;
 }
 
 void motor_stop(void) 
@@ -443,7 +455,7 @@ static void compute_c_speed(void)
 static void next_cn(void)
 {
 	if (speed_profile == PROFILE_LINEAR) {
-		if (spd == SPEED_UP) 
+		if (state == SPEED_UP) 
 			cn = cn - (2.0 * cn) / (4.0 * (float)n + 1.0);
 		else 
 			cn = cn - (2.0 * cn) / (4.0 * (float)n * (-1.0) + 1.0);
@@ -451,7 +463,7 @@ static void next_cn(void)
 		if (n == 1) {
 			cn = 0.9 * c0;		// correction for quadratic profile. See David Austin paper
 		} else {
-			if (spd == SPEED_UP)
+			if (state == SPEED_UP)
 				cn = cn - (6.0 * cn) / (9.0 * (float)n + 3.0);
 			else
 				cn = cn - (6.0 * cn) / (9.0 * (float)n * (-1.0) + 3.0);

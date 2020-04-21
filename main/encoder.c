@@ -6,6 +6,7 @@
 #include "encoder.h"
 
 #include <avr/io.h>
+#include <avr/interrupt.h>
 
 /******************************************************************************
 *******************	C O N S T A N T S  D E F I N I T I O N S ******************
@@ -28,8 +29,8 @@
 ****************** V A R I A B L E S   D E F I N I T I O N S ******************
 ******************************************************************************/
 
-struct enc_s encoder;
-struct btn_s btn;
+static struct enc_s encoder;
+static struct btn_s btn;
 
 static volatile uint8_t limit_switch;
 
@@ -71,30 +72,35 @@ void limit_switch_init(void)
 
 uint8_t encoder_get_update(void)
 {
-	return enc.update;
+	return encoder.update;
 }
 
 void encoder_set_update(uint8_t state)
 {
-	enc.update = state;
+	encoder.update = state;
 }
 
 uint8_t encoder_get_dir(void)
 {
-	return enc.dir;
-}
-
-/*----------------------------------------------------------------------------*
-*----------------------------------------------------------------------------*/
-
-struct btn_s *button_get(void)
-{
-	return &btn;
+	return encoder.dir;
 }
 
 struct enc_s *encoder_get(void)
 {
 	return &encoder;
+}
+
+/*----------------------------------------------------------------------------*
+*----------------------------------------------------------------------------*/
+
+volatile uint8_t *limit_switch_get(void)
+{
+	return &limit_switch;
+}
+
+struct btn_s *button_get(void)
+{
+	return &btn;
 }
 
 void button_check(void)
@@ -153,8 +159,8 @@ void button_check(void)
 
 static void init_defaults(void)
 {
-	enc.update = FALSE;
-	enc.dir = CW;
+	encoder.update = FALSE;
+	encoder.dir = CW;
 
 	btn.query = FALSE;
 	btn.action = FALSE;
@@ -176,10 +182,10 @@ static void init_defaults(void)
 
 ISR(INT0_vect){
 	
-	enc.update = TRUE;
+	encoder.update = TRUE;
 
-	if(PIND & (1<<PIND3)) enc.dir = CW;
-	else enc.dir = CCW;
+	if(PIND & (1<<PIND3)) encoder.dir = CW;
+	else encoder.dir = CCW;
 }
 
 ISR(PCINT1_vect){
@@ -187,7 +193,7 @@ ISR(PCINT1_vect){
 	BTN - PC3 - PCINT11 | -> PCI1 (Encoder push button)
 	SW	- PC4 - PCINT12 | -> PCI1 (Slider Limit Switch)
 */
-    if((!SWITCH) && (!slider.sw)) {
+    if((!SWITCH) && (!limit_switch)) {
     	limit_switch = TRUE;
     	// Here, there must be a more elaborate piece of code to handle
     	// the slider crushing against the switch. Maybe implement a shutdown

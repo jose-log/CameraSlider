@@ -12,10 +12,6 @@
 *******************	I N C L U D E   D E P E N D E N C I E S	*******************
 ******************************************************************************/
 
-#include "menu.h"
-#include "timers.h"
-#include "util.h"
-
 #include <avr/io.h>
 #include <stdint.h>
 

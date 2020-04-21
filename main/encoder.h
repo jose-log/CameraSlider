@@ -5,8 +5,6 @@
 
 #include "config.h"
 
-#include <stdint.h>
-
 struct btn_s {
 	volatile uint8_t query; // flag; query button state
 	uint8_t action;			// flag; button action activated
@@ -18,9 +16,9 @@ struct btn_s {
 	uint8_t delay3;			// flag; delay 3 elapsed
 };
 
-volatile struct enc_s {
-	uint8_t update;
-	uint8_t dir;
+struct enc_s {
+	volatile uint8_t update;
+	volatile uint8_t dir;
 };
 
 // BUTTON STATE MACROS
@@ -42,6 +40,8 @@ struct btn_s *button_get(void);
 
 struct enc_s *encoder_get(void);
 
-void btn_check(void);
+volatile uint8_t *limit_switch_get(void);
+
+void button_check(void);
 
 #endif /* ENCODER_H */

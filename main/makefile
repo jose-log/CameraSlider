@@ -13,6 +13,7 @@ SRC = main.c \
 	  init.c \
 	  lcd.c \
 	  menu.c \
+	  motor.c \
 	  move.c \
 	  timers.c \
 	  uart.c \

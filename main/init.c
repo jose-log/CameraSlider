@@ -6,6 +6,7 @@
 #include "init.h"
 
 #include <avr/io.h>
+#include <avr/pgmspace.h>
 
 /******************************************************************************
 ******************* F U N C T I O N   D E F I N I T I O N S *******************
@@ -29,8 +30,8 @@ void boot(void)
 
 	// Messasges:
 	lcd_screen(SCREEN_WELCOME);
-	uart_send_string("Hello World!\n\r");
-	uart_send_string_p(PSTR("This is a ROM-stored string\n\r"));
+	uart_send_string_p(PSTR("#--------------------------\n\r"));
+	uart_send_string_p(PSTR("Hello World!\n\r"));
 }
 
 static void ports_init(void)

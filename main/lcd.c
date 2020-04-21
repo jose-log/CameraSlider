@@ -114,8 +114,10 @@ void lcd_welcome_screen(void)
 	_delay_ms(1000);
 }
 
-void lcd_screen(uint8_t screen)
+void lcd_screen(screen_t screen)
 {
+	uint8_t pro, ctl;
+
 	switch(screen){
 
 		case SCREEN_WELCOME:
@@ -139,8 +141,8 @@ void lcd_screen(uint8_t screen)
 			break;
 	
 		case SCREEN_MOTOR_PARAMS:
-			uint8_t pro = motor_get_profile();
-			uint8_t ctl = motor_get_control();
+			pro = motor_get_profile();
+			ctl = motor_get_control();
 			
 			lcd_clear_screen();
 			if (ctl == POSITION_CONTROL) {
@@ -154,33 +156,23 @@ void lcd_screen(uint8_t screen)
 				lcd_set_cursor(1,11);
 				lcd_write_str("cms/s");
 			}
-			if (tmp == PROFILE_LINEAR) {
+			if (pro == PROFILE_LINEAR) {
 				lcd_set_cursor(0,10);
 				lcd_write_str("linear");
-			} else if (tmp == PROFILE_LINEAR) {
+			} else if (pro == PROFILE_LINEAR) {
 				lcd_set_cursor(0,7);
 				lcd_write_str("quadratic");
 			}
 			break;
 
-		case SCREEN_EXPONENTIAL_POSITION:
-			lcd_clear_screen();	
-			lcd_set_cursor(0,7);
-			lcd_write_str("quadratic");
-			lcd_set_cursor(1,0);
-			lcd_write_str("Pos:");
-			lcd_set_cursor(1,8);
-			lcd_write_str("mm");
-			break;
-
-		case STATE_CHOOSE_ACTION:
+		case SCREEN_CHOOSE_ACTION:
 			lcd_clear_screen();
 			lcd_write_str(">Create Movement");
 			lcd_set_cursor(1,0);
 			lcd_write_str(" Manual Movement");
 			break;
 
-		case STATE_CHOOSE_CONTROL_TYPE:
+		case SCREEN_CHOOSE_CONTROL_TYPE:
 			lcd_clear_screen();
 			lcd_write_str(">Position ctl.");
 			lcd_set_cursor(1,0);

@@ -43,9 +43,15 @@ void motor_move_at_speed(int8_t s);
 
 uint16_t motor_get_speed(void);
 
+uint8_t motor_get_profile(void);
+
 uint8_t motor_get_control(void);
 
 int32_t motor_get_position(void);
+
+volatile uint8_t *motor_get_dir(void);
+
+void motor_set_position(int32_t p);
 
 void motor_stop(void);
 

@@ -10,10 +10,12 @@
 ******************************************************************************/
 
 #include "config.h"
+#include "init.h"
+#include "menu.h"
+#include "timers.h"
+#include "util.h"
 
-#include <avr/io.h>
 #include <avr/interrupt.h>
-#include <avr/pgmspace.h>
 #include <util/delay.h>
 #include <stdlib.h>
 
@@ -52,7 +54,7 @@ int main(void)
 	sei();
 
 	// misc vars for retrieved arguments in menu functions
-	int8_t x;
+	int8_t x = 0;
 
 	while(TRUE){
 
@@ -114,8 +116,8 @@ int main(void)
 				if(choose_speed_profile() < 0){
 					system_state = STATE_CHOOSE_ACTION;	
 				} else {
-					if(x == 1) system_state = STATE_MANUAL_POSITION;
-					else if(x == 0) system_state = STATE_MANUAL_SPEED;
+					if (x == 1) system_state = STATE_MANUAL_POSITION;
+					else if (x == 0) system_state = STATE_MANUAL_SPEED;
 				}
 				break;
 
