@@ -8,6 +8,7 @@
 
 #include "config.h"
 #include "driver.h"
+#include "encoder.h"
 #include "timers.h"
 #include "uart.h"
 
@@ -37,7 +38,7 @@ void motor_init(void);
 
 void motor_move_to_pos(int32_t p, uint8_t mode);
 
-void motor_move_to_pos_block(int32_t p, uint8_t mode);
+int8_t motor_move_to_pos_block(int32_t pos, uint8_t mode);
 
 void motor_move_at_speed(int8_t s);
 
@@ -53,7 +54,7 @@ volatile uint8_t *motor_get_dir(void);
 
 void motor_set_position(int32_t p);
 
-void motor_stop(void);
+void motor_stop(uint8_t type);
 
 int8_t motor_set_maxspeed_percent(uint8_t speed);
 

@@ -25,6 +25,9 @@
 #define ACCEL_MAX 		8000.0		// Valid for MODE_EIGHTH_STEP
 #define ACCEL_MIN 		1862.0		// Valid for 2MHz timer frequency
 
+#define SOFT_STOP 	0x30
+#define HARD_STOP 	0x31
+
 #define CMIN_EIGHTH_STEPPING 	249.0
 
 /******************************************************************************
@@ -75,7 +78,7 @@ void motor_init(void)
 
 	// minimum counter value to get max speed
 	cmin = CMIN_EIGHTH_STEPPING;
-	motor_set_accel_percent(100);
+	motor_set_speed_profile(PROFILE_LINEAR);
 	cn = c0;
 	n = 0;
 	state = SPEED_HALT;
@@ -112,11 +115,6 @@ int8_t motor_set_maxspeed_percent(uint8_t speed)
 	b = SPEED_MAX * a;		// Fraction of max speed
 
 	cmin = (f / b) - 1.0;
-
-	char str[6];
-	ltoa((uint32_t)c0, str, 10);
-	uart_send_string("\n\rc0: ");
-	uart_send_string(str);
 
 	return 0;
 }
@@ -188,16 +186,24 @@ volatile uint8_t *motor_get_dir(void)
 	return &dir;
 }
 
-void motor_stop(void) 
+void motor_stop(uint8_t type) 
 {
-	if (state != SPEED_HALT) {
-		if (dir == CW) target_pos = current_pos + (int32_t)n;
-		else target_pos = current_pos - (int32_t)n;
+	if (type == SOFT_STOP) {
+		if (state != SPEED_HALT) {
+			if (dir == CW) target_pos = current_pos + (int32_t)n;
+			else target_pos = current_pos - (int32_t)n;
+		}
+	} else if (type == HARD_STOP) {
+		// target position is overwritten with the next step.
+		if (dir == CW) target_pos = current_pos + 1;
+		else if (dir == CCW) target_pos = current_pos - 1;
 	}
 }
 
 void motor_move_to_pos(int32_t p, uint8_t mode)
 {
+	ctl = POSITION_CONTROL;
+
 	if (mode == ABS) {
 		if (current_pos == p) {
 			return;	//discard if position is the same as target
@@ -241,26 +247,26 @@ void motor_move_to_pos(int32_t p, uint8_t mode)
 				if ((target_pos - current_pos) < (int32_t)n) {	// motor too close to target to stop
 					ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {	// No interrupt should occur
 						queue_position_motion(target_pos);
-						motor_stop();
+						motor_stop(SOFT_STOP);
 					}
 				}
 			} else {
 				ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {		//No interrupt should occur
 					queue_position_motion(target_pos);
-					motor_stop();
+					motor_stop(SOFT_STOP);
 				}
 			}
 		} else {
 			if (dir == CW) {
 				ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {		//No interrupt should occur
 					queue_position_motion(target_pos);
-					motor_stop();
+					motor_stop(SOFT_STOP);
 				}
 			} else {
 				if (abs(target_pos - current_pos) < (int32_t)n) {	// motor too close to target to stop
 					ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {		//No interrupt should occur
 						queue_position_motion(target_pos);
-						motor_stop();
+						motor_stop(SOFT_STOP);
 					}
 				}
 			}
@@ -268,10 +274,23 @@ void motor_move_to_pos(int32_t p, uint8_t mode)
 	}
 }
 
-void motor_move_to_pos_block(int32_t p, uint8_t mode) 
+int8_t motor_move_to_pos_block(int32_t pos, uint8_t mode) 
 {
-	motor_move_to_pos(p, mode);
-	while(state != SPEED_HALT);
+	int8_t x = 0;
+	volatile uint8_t *p = limit_switch_get();
+
+	motor_move_to_pos(pos, mode);
+	while(state != SPEED_HALT) {
+		if ((*p)) {
+			ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {		//No interrupt should occur
+				motor_stop(HARD_STOP);
+				(*p) = FALSE;
+				x = -1;
+			}
+			break;
+		}
+	}
+	return x;
 }
 
 void motor_move_at_speed(int8_t s)
@@ -321,7 +340,7 @@ void motor_move_at_speed(int8_t s)
 						state = SPEED_DOWN;
 						speed_stop = TRUE;
 						queue_speed_motion(s);
-						motor_stop();
+						motor_stop(SOFT_STOP);
 					}
 				}
 			} else if (newdir == CCW) {
@@ -330,7 +349,7 @@ void motor_move_at_speed(int8_t s)
 						state = SPEED_DOWN;
 						speed_stop = TRUE;
 						queue_speed_motion(s);
-						motor_stop();
+						motor_stop(SOFT_STOP);
 					}
 				} else if (dir == CCW) {	// if new speed goes in opposite rotation direction
 					if (c < cmin) {
@@ -390,7 +409,7 @@ static void compute_c_position(void)
 				state = SPEED_HALT;
 				
 				drv_set(DISABLE);
-				
+
 				// check queue:
 				if (queue_full)
 					timer_aux_set(ENABLE, 100);	// software ISR to execute queued movement	

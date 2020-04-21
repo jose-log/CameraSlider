@@ -4,13 +4,12 @@
 
 #include "config.h"
 #include "driver.h"
-#include "encoder.h"
 #include "motor.h"
 #include "timers.h"
 #include "uart.h"
 
 #include <stdint.h>
 
-void homing_cycle(void);
+int8_t homing_cycle(void);
 
 #endif /* MOVE_H */

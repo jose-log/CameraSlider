@@ -24,6 +24,7 @@ void boot(void)
 	limit_switch_init();
 	lcd_init();
 	uart_init();
+	motor_init();
 	
 	uart_set(ENABLE);
 	timer_general_set(ENABLE);

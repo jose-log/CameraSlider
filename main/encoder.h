@@ -30,6 +30,8 @@ void encoder_init(void);
 
 void limit_switch_init(void);
 
+void limit_switch_ISR(uint8_t state);
+
 uint8_t encoder_get_update(void);
 
 void encoder_set_update(uint8_t state);

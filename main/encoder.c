@@ -70,6 +70,14 @@ void limit_switch_init(void)
 	PCMSK1 |= (1<<PCINT12);
 }
 
+void limit_switch_ISR(uint8_t state)
+{
+	if (state == ENABLE)
+		PCMSK1 |= (1<<PCINT12);	
+	else
+		PCMSK1 &= ~(1<<PCINT12);	
+}
+
 uint8_t encoder_get_update(void)
 {
 	return encoder.update;

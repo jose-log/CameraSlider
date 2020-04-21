@@ -15,6 +15,8 @@
 #include "timers.h"
 #include "util.h"
 
+#include "motor.h"
+
 #include <avr/interrupt.h>
 #include <util/delay.h>
 #include <stdlib.h>
@@ -116,8 +118,8 @@ int main(void)
 				if(choose_speed_profile() < 0){
 					system_state = STATE_CHOOSE_ACTION;	
 				} else {
-					if (x == 1) system_state = STATE_MANUAL_POSITION;
-					else if (x == 0) system_state = STATE_MANUAL_SPEED;
+					if (x == 0) system_state = STATE_MANUAL_POSITION;
+					else if (x == 1) system_state = STATE_MANUAL_SPEED;
 				}
 				break;
 
