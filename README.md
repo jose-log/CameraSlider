@@ -12,8 +12,5 @@ Stepper motor control implementing soft movements is not a menial task for an MC
 - Controller platform: Arduino Nano (ATmega328p MCU)
 - Stepper motor driver: A4988 module
 - Display: 16x2 LCD based on the Hitachi HD44780
-- Power: 
--- 12V for motor
--- 12V for arduino (via Arduino Nano linear regulator)
--- 5V for LCD (via Arduino Nano linear regulator)
+- Power: 12V for motor. 12V for arduino (via Arduino Nano linear regulator). 5V for LCD (via Arduino Nano linear regulator)
 - Limit switch at the beginning of the slider
