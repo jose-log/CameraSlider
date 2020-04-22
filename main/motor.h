@@ -25,10 +25,10 @@
 #define POSITION_CONTROL	0x71
 #define SPEED_CONTROL 		0x70
 
-#define MAX_LENGHT_CMS	((uint32_t) 80)
-#define CMS_PER_REV 	((uint32_t) 4)
-#define STEPS_PER_REV	((uint32_t) 1600)	// EIGHTH stepping
-#define MAX_COUNT		((uint32_t) (MAX_LENGHT_CMS * (STEPS_PER_REV / CMS_PER_REV)))
+#define MAX_LENGHT_CMS	((int32_t) 80)
+#define CMS_PER_REV 	((int32_t) 4)
+#define STEPS_PER_REV	((int32_t) 1600)	// EIGHTH stepping
+#define MAX_COUNT		(MAX_LENGHT_CMS * (STEPS_PER_REV / CMS_PER_REV))
 
 /******************************************************************************
 ******************** F U N C T I O N   P R O T O T Y P E S ********************
@@ -36,17 +36,17 @@
 
 void motor_init(void);
 
-void motor_move_to_pos(int32_t p, uint8_t mode);
+void motor_move_to_pos(int32_t p, uint8_t mode, uint8_t limits);
 
-int8_t motor_move_to_pos_block(int32_t pos, uint8_t mode);
+int8_t motor_move_to_pos_block(int32_t pos, uint8_t mode, uint8_t limits);
 
 void motor_move_at_speed(int8_t s);
 
 uint16_t motor_get_speed(void);
 
-uint8_t motor_get_profile(void);
+int8_t motor_get_speed_percent(void);
 
-uint8_t motor_get_control(void);
+uint8_t motor_get_profile(void);
 
 int32_t motor_get_position(void);
 

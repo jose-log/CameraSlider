@@ -145,6 +145,9 @@ int8_t choose_speed_profile(void){
 	lcd_screen(SCREEN_CHOOSE_SPEED_PROFILE);
 	uart_send_string_p(PSTR("\n\r> Linear or Quadratic profile"));
 
+	// default profile: Linear
+	motor_set_speed_profile(PROFILE_LINEAR);
+
 	while(TRUE){
 
 		// timing for loop execution
@@ -197,9 +200,13 @@ int8_t manual_speed(void)
 	struct enc_s *encoder = encoder_get();
 
 	// LCD screen:
-	lcd_screen(SCREEN_MOTOR_PARAMS);
+	lcd_screen(SCREEN_MOTOR_SPEED);
 	lcd_update_speed(motor_get_speed());
 	uart_send_string_p(PSTR("\n\r> Speed Control"));
+
+	// Trim motor parameters
+	motor_set_maxspeed_percent(100);
+	motor_set_accel_percent(50);
 
 	while(TRUE){
 
@@ -212,8 +219,12 @@ int8_t manual_speed(void)
 		if(encoder->update){
 			encoder->update = FALSE;
 
-			if(encoder->dir == CW) i += 5;
-			else if (encoder->dir == CCW) i -= 5;
+			if(encoder->dir == CW) 
+				i = motor_get_speed_percent() + 5;
+				//i += 5;
+			else if (encoder->dir == CCW) 
+				i = motor_get_speed_percent() - 5;
+				//i -= 5;
 			
 			if(i > 100) i = 100;
 			else if(i < -100) i = -100;
@@ -248,9 +259,13 @@ uint8_t manual_position(void)
 	struct enc_s *encoder = encoder_get();
 
 	// LCD screen:
-	lcd_screen(SCREEN_MOTOR_PARAMS);
+	lcd_screen(SCREEN_MOTOR_POSITION);
 	lcd_update_position(motor_get_position());
 	uart_send_string_p(PSTR("\n\r> Position Control"));
+
+	// Trim motor parameters
+	motor_set_maxspeed_percent(100);
+	motor_set_accel_percent(50);
 
 	while(TRUE){
 
@@ -263,8 +278,8 @@ uint8_t manual_position(void)
 		if(encoder->update){
 			encoder->update = FALSE;
 
-			if(encoder->dir == CW) motor_move_to_pos(400, REL);
-			else if (encoder->dir == CCW) motor_move_to_pos(-400, REL);			
+			if(encoder->dir == CW) motor_move_to_pos(600, REL, TRUE);
+			else if (encoder->dir == CCW) motor_move_to_pos(-600, REL, TRUE);			
 		}
 
 		// update display every 100ms

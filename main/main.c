@@ -92,8 +92,8 @@ int main(void)
 			*		the rotary encoder
 			*/
 			case STATE_CHOOSE_ACTION:		// Automatic or Manual movement
-				if (choose_action()) system_state = STATE_CHOOSE_CONTROL_TYPE;
-				else system_state = STATE_CREATE_MOVEMENT;
+				if (choose_action()) system_state = STATE_CHOOSE_CONTROL_TYPE;	// Manual Movement
+				else system_state = STATE_CREATE_MOVEMENT;						// Create Movement
 				break;
 
 			/*
@@ -103,7 +103,7 @@ int main(void)
 			*/
 			case STATE_CHOOSE_CONTROL_TYPE:
 				x = choose_control_type();
-				if (x < 0) system_state = STATE_FAIL;
+				if (x < 0) system_state = STATE_CHOOSE_ACTION;		// Return to 1st menu
 				else system_state = STATE_CHOOSE_SPEED_PROFILE;
 				break;
 
@@ -116,7 +116,7 @@ int main(void)
 			*/
 			case STATE_CHOOSE_SPEED_PROFILE:
 				if(choose_speed_profile() < 0){
-					system_state = STATE_CHOOSE_ACTION;	
+					system_state = STATE_CHOOSE_ACTION;				// Return no 1st menu
 				} else {
 					if (x == 0) system_state = STATE_MANUAL_POSITION;
 					else if (x == 1) system_state = STATE_MANUAL_SPEED;
@@ -155,7 +155,6 @@ int main(void)
 
 			case STATE_FAIL:
 				fail_message();
-				_delay_ms(1000);
 				system_state = STATE_CHOOSE_ACTION;
 				break;
 			

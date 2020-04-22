@@ -140,26 +140,33 @@ void lcd_screen(screen_t screen)
 			_delay_ms(1000);
 			break;
 	
-		case SCREEN_MOTOR_PARAMS:
+		case SCREEN_MOTOR_POSITION:
 			pro = motor_get_profile();
-			ctl = motor_get_control();
-			
 			lcd_clear_screen();
-			if (ctl == POSITION_CONTROL) {
-				lcd_set_cursor(1,0);
-				lcd_write_str("Pos:");
-				lcd_set_cursor(1,8);
-				lcd_write_str("mm");
-			} else if (ctl == SPEED_CONTROL) {
-				lcd_set_cursor(1,0);
-				lcd_write_str("Speed:");
-				lcd_set_cursor(1,11);
-				lcd_write_str("cms/s");
-			}
+			lcd_set_cursor(1,0);
+			lcd_write_str("Pos:");
+			lcd_set_cursor(1,8);
+			lcd_write_str("mm");
 			if (pro == PROFILE_LINEAR) {
 				lcd_set_cursor(0,10);
 				lcd_write_str("linear");
-			} else if (pro == PROFILE_LINEAR) {
+			} else if (pro == PROFILE_QUADRATIC) {
+				lcd_set_cursor(0,7);
+				lcd_write_str("quadratic");
+			}
+			break;
+
+		case SCREEN_MOTOR_SPEED:
+			pro = motor_get_profile();
+			lcd_clear_screen();
+			lcd_set_cursor(1,0);
+			lcd_write_str("Speed:");
+			lcd_set_cursor(1,11);
+			lcd_write_str("cms/s");
+			if (pro == PROFILE_LINEAR) {
+				lcd_set_cursor(0,10);
+				lcd_write_str("linear");
+			} else if (pro == PROFILE_QUADRATIC) {
 				lcd_set_cursor(0,7);
 				lcd_write_str("quadratic");
 			}

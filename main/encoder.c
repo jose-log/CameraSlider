@@ -106,9 +106,21 @@ volatile uint8_t *limit_switch_get(void)
 	return &limit_switch;
 }
 
+uint8_t limit_switch_test(void)
+{
+	// If pressed, return TRUE.
+	return !SWITCH;
+}
+
 struct btn_s *button_get(void)
 {
 	return &btn;
+}
+
+uint8_t button_test(void)
+{
+	// if pressed, return TRUE
+	return !BUTTON;
 }
 
 void button_check(void)

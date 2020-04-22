@@ -44,6 +44,10 @@ struct enc_s *encoder_get(void);
 
 volatile uint8_t *limit_switch_get(void);
 
+uint8_t limit_switch_test(void);
+
+uint8_t button_test(void);
+
 void button_check(void);
 
 #endif /* ENCODER_H */

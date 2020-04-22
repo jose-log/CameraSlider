@@ -69,7 +69,6 @@ static void next_cn(void);
 void motor_init(void)
 {
 	drv_reset();
-	drv_set(ENABLE);
 	drv_step_mode(MODE_EIGHTH_STEP);
 	drv_dir(CW, &dir);
 	
@@ -161,14 +160,25 @@ uint16_t motor_get_speed(void)
 	return timer_speed_get();
 }
 
+int8_t motor_get_speed_percent(void)
+{
+	float percent = 0.0;
+
+	if (timer_speed_check()) {
+		uint16_t s = motor_get_speed();
+		float pulses = f / (float)(s + 1);
+
+		percent = 100.0 * pulses / SPEED_MAX;
+		if (dir == CCW)
+			percent *= -1.0;
+	}
+
+	return (int8_t)percent;
+}
+
 uint8_t motor_get_profile(void)
 {
 	return speed_profile;
-}
-
-uint8_t motor_get_control(void)
-{
-	return ctl;
 }
 
 int32_t motor_get_position(void)
@@ -200,26 +210,37 @@ void motor_stop(uint8_t type)
 	}
 }
 
-void motor_move_to_pos(int32_t p, uint8_t mode)
+void motor_move_to_pos(int32_t p, uint8_t mode, uint8_t limits)
 {
 	ctl = POSITION_CONTROL;
 
-	if (mode == ABS) {
-		if (current_pos == p) {
-			return;	//discard if position is the same as target
-		} else {
+	// If slider limits flag is TRUE, then check the slider position to avoid
+	// crashing. If FALSE, do not check limits. Useful for HOMING cycle.
+	if (limits) {
+		if (mode == ABS) {
 			// Check valid target position (avoid crashing the slider)
-			if ((target_pos <= MAX_COUNT) && (target_pos >= 0))
+			if ((p <= MAX_COUNT) && (p >= 0))
 				target_pos = p;
-			else if (target_pos > MAX_COUNT)
+			else if (p > MAX_COUNT)
 				target_pos = MAX_COUNT;
-			else if (target_pos < 0)
+			else if (p < 0)
+				target_pos = 0;
+		} else if (mode == REL) {
+			int32_t np = current_pos + p;
+			// Check valid target position (avoid crashing the slider)
+			if ((np <= MAX_COUNT) && (np >= 0))
+				target_pos = np;
+			else if (np > MAX_COUNT)
+				target_pos = MAX_COUNT;
+			else if (np < 0)
 				target_pos = 0;
 		}
-	} else if (mode == REL) {
-		if (p == 0) return;				//discard if position is the same as target
-		else target_pos = current_pos + p;
+	} else {
+		if (mode == ABS) target_pos = p;
+		else if (mode == REL) target_pos = current_pos + p;
 	}
+
+	if (target_pos == current_pos) return;	//discard if position is the same as target
 
 	// Determine how's the motor moving:
 	if (state == SPEED_HALT) {
@@ -274,12 +295,12 @@ void motor_move_to_pos(int32_t p, uint8_t mode)
 	}
 }
 
-int8_t motor_move_to_pos_block(int32_t pos, uint8_t mode) 
+int8_t motor_move_to_pos_block(int32_t pos, uint8_t mode, uint8_t limits) 
 {
 	int8_t x = 0;
 	volatile uint8_t *p = limit_switch_get();
 
-	motor_move_to_pos(pos, mode);
+	motor_move_to_pos(pos, mode, limits);
 	while(state != SPEED_HALT) {
 		if ((*p)) {
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {		//No interrupt should occur
@@ -314,12 +335,16 @@ void motor_move_at_speed(int8_t s)
 		if (s != 0) {
 			if (newdir == CW) drv_dir(CW, &dir);
 			else if (newdir == CCW) drv_dir(CCW, &dir);
-			drv_set(ENABLE);
-			cn = c0;
-			timer_speed_set(ENABLE, (uint16_t)cn);
-			state = SPEED_UP;
-			speed_stop = FALSE;
-			cmin = c;
+			// Check limits before starting motion.
+			if (((current_pos >= 0) && (current_pos < MAX_COUNT) && (dir == CW)) ||
+				((current_pos > 0) && (current_pos <= MAX_COUNT) && (dir == CCW))) {
+				drv_set(ENABLE);
+				cn = c0;
+				timer_speed_set(ENABLE, (uint16_t)cn);
+				state = SPEED_UP;
+				speed_stop = FALSE;
+				cmin = c;
+			}
 		}
 	} else {
 		if (s == 0) {					// if target speed is 0
@@ -445,7 +470,6 @@ static void compute_c_speed(void)
 			break;
 
 		case SPEED_DOWN:
-			n--;
 			if (n > 0) {
 				next_cn();
 				if (!speed_stop) {			// if motor is not issued a stop instruction
@@ -461,9 +485,16 @@ static void compute_c_speed(void)
 				
 				drv_set(DISABLE);
 
+				char str[6];
+				ltoa(current_pos, str, 10);
+				uart_send_string("\n\rpos: ");
+				uart_send_string(str);
+
 				if (queue_full)
 					timer_aux_set(ENABLE, 100);	// software ISR to execute queued movement	
 			}
+			if (n > 0)
+				n--;
 			break;
 
 		default:
@@ -559,7 +590,7 @@ ISR(TIMER0_COMPA_vect)
 * Used to generate "software-like" interrupts
 */
 	timer_aux_set(DISABLE, 100);
-	if (ctl == POSITION_CONTROL) motor_move_to_pos(queue_pos, ABS);
+	if (ctl == POSITION_CONTROL) motor_move_to_pos(queue_pos, ABS, TRUE);
 	else if (ctl == SPEED_CONTROL) motor_move_at_speed(queue_speed);
 	queue_full = FALSE;
 	uart_send_string("\n\rTMR0");

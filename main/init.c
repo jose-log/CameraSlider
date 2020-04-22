@@ -71,7 +71,7 @@ static void ports_init(void)
 	DRV_MS3_PORT &= ~(1<<DRV_MS3_PIN);
 	DRV_MS2_PORT &= ~(1<<DRV_MS2_PIN);
 	DRV_MS1_PORT &= ~(1<<DRV_MS1_PIN);
-	DRV_EN_PORT &= ~(1<<DRV_EN_PIN);
+	DRV_EN_PORT |= (1<<DRV_EN_PIN);		// Disabled Initially
 
 	// Limit switch pin
 	DDRC &= ~(1<<DDC4);
