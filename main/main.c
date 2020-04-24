@@ -28,12 +28,8 @@
 typedef enum {
 	STATE_HOMING,
 	STATE_CHOOSE_ACTION,
-	STATE_CHOOSE_CONTROL_TYPE,
-	STATE_CHOOSE_SPEED_PROFILE,
-	STATE_MANUAL_SPEED,
-	STATE_MANUAL_POSITION,
+	STATE_MANUAL_MOVEMENT,
 	STATE_CREATE_MOVEMENT,
-	STATE_TEST_ACCELSTEPPER,
 	STATE_FAIL
 } state_t;
 
@@ -43,6 +39,7 @@ typedef enum {
 
 volatile static state_t system_state = STATE_HOMING;
 volatile uint16_t ms = 0;
+struct auto_s automatic;
 
 /******************************************************************************
 *************************** M A I N   P R O G R A M ***************************
@@ -56,7 +53,7 @@ int main(void)
 	sei();
 
 	// misc vars for retrieved arguments in menu functions
-	int8_t x = 0;
+	int32_t x = 0;
 
 	while(TRUE){
 
@@ -92,52 +89,50 @@ int main(void)
 			*		the rotary encoder
 			*/
 			case STATE_CHOOSE_ACTION:		// Automatic or Manual movement
-				if (choose_action()) system_state = STATE_CHOOSE_CONTROL_TYPE;	// Manual Movement
-				else system_state = STATE_CREATE_MOVEMENT;						// Create Movement
+				if (choose_action()) system_state = STATE_MANUAL_MOVEMENT;	// Manual Movement
+				else system_state = STATE_CREATE_MOVEMENT;					// Create Movement
 				break;
 
-			/*
-			* CONTROL TYPE: Two options are displayed:
-			* 	- Position control: encoder varies the slider position 
-			* 	- Speed control: encoder varies the slider speed
-			*/
-			case STATE_CHOOSE_CONTROL_TYPE:
+			case STATE_MANUAL_MOVEMENT:
+
+				/*
+				* CONTROL TYPE: Two options are displayed:
+				* 	- Position control: encoder varies the slider position 
+				* 	- Speed control: encoder varies the slider speed
+				*/
 				x = choose_control_type();
-				if (x < 0) system_state = STATE_CHOOSE_ACTION;		// Return to 1st menu
-				else system_state = STATE_CHOOSE_SPEED_PROFILE;
-				break;
-
-			/*
-			* CHOOSE SPEED PROFILE: Two options are displayed:
-			* 	- Linear: Speed increases/decreases linearly
-			* 	- Quadratic: Speed increases/decreases as in a squared function
-			* 		This profile is less sensible at low speeds and more
-			*		sensible at high speeds
-			*/
-			case STATE_CHOOSE_SPEED_PROFILE:
-				if(choose_speed_profile() < 0){
-					system_state = STATE_CHOOSE_ACTION;				// Return no 1st menu
-				} else {
-					if (x == 0) system_state = STATE_MANUAL_POSITION;
-					else if (x == 1) system_state = STATE_MANUAL_SPEED;
+				if (x < 0) {
+					system_state = STATE_CHOOSE_ACTION;
+					break;
 				}
-				break;
 
-			/*
-			* SPEED CONTROL: MOTOR CAN BE MOVED and the rotary encoder changes
-			*	its velocity
-			*/
-			case STATE_MANUAL_SPEED:
-				manual_speed();
-				system_state = STATE_CHOOSE_ACTION;
-				break;
+				/*
+				* CHOOSE SPEED PROFILE: Two options are displayed:
+				* 	- Linear: Speed increases/decreases linearly
+				* 	- Quadratic: Speed increases/decreases as in a squared function
+				* 		This profile is less sensible at low speeds and more
+				*		sensible at high speeds
+				*/
+				// STATE_CHOOSE_SPEED_PROFILE
+				if(choose_speed_profile() < 0) {
+					system_state = STATE_CHOOSE_ACTION;
+					break;
+				}
 
-			/*
-			* POSITION CONTROL: MOTOR CAN BE MOVED and the rotary encoder 
-			*	changes its position
-			*/
-			case STATE_MANUAL_POSITION:
-				manual_position();
+				if (x == 0) {
+					/*
+					* POSITION CONTROL: MOTOR CAN BE MOVED and the rotary encoder 
+					*	changes its position
+					*/
+					manual_position();
+				} else if (x == 1) {
+					/*
+					* SPEED CONTROL: MOTOR CAN BE MOVED and the rotary encoder changes
+					*	its velocity
+					*/
+					manual_speed();
+				}
+				
 				system_state = STATE_CHOOSE_ACTION;
 				break;
 
@@ -145,12 +140,93 @@ int main(void)
 			* CREATE MOVEMENT: under construction
 			*/
 			case STATE_CREATE_MOVEMENT:
-				user_movement();
-				system_state = STATE_FAIL;
-				break;
+			
+				/*
+				* INITIAL POSITION: Moves motor using speed control, and
+				* user places the motor at the initial point of movement 
+				*/
+				x = user_set_position(FALSE);	// FALSE means initial pos
+				if (x < 0) {
+					system_state = STATE_CHOOSE_ACTION;
+					break;
+				} else {
+					automatic.initial_pos = x;
+				}
 
-			case STATE_TEST_ACCELSTEPPER:
-				//accel_stepper();
+				/*
+				* FINAL POSITION: Moves motor using speed control, and
+				* user places the motor at the final point of movement 
+				*/
+				x = user_set_position(TRUE);	// TRUE means initial pos
+				if (x < 0) {
+					system_state = STATE_CHOOSE_ACTION;
+					break;
+				} else {
+					automatic.final_pos = x;
+				}
+
+				/*
+				* TIME MOVING: Motor stands still. User enters the time
+				* required to perform the movement.
+				*/
+				x = user_set_time();
+				if (x < 0) {
+					system_state = STATE_CHOOSE_ACTION;
+					break;
+				} else {
+					automatic.time = x;
+				}
+
+				/*
+				* REPETITIONS: up to 20 repetitions of the same movement.
+				* if reps is 0. No repetitions will be performed
+				*/
+				x = user_set_reps();
+				if (x < 0) {
+					system_state = STATE_CHOOSE_ACTION;
+					break;
+				} else {
+					automatic.reps = x;
+				}
+
+				/*
+				* LOOP: if active, movement will go from init position to
+				* final position, and back again to initial position
+				*/
+				x = user_set_loop();
+				if (x < 0) {
+					system_state = STATE_CHOOSE_ACTION;
+					break;
+				} else {
+					automatic.loop = x;
+				}
+
+				/*
+				* ACCELERATION: percentage of acceleration range
+				*/
+				x = user_set_accel();
+				if (x < 0) {
+					system_state = STATE_CHOOSE_ACTION;
+					break;
+				} else {
+					automatic.ramp = x;
+				}
+
+				/*
+				* Go to initial position:
+				*/
+				x = user_go_to_init(automatic.initial_pos);
+				if (x < 0) {
+					system_state = STATE_CHOOSE_ACTION;
+					break;
+				}
+
+				/*
+				* START automatic movement
+				*/
+				user_gogogo(automatic);
+
+				system_state = STATE_CHOOSE_ACTION;
 				break;
 
 			case STATE_FAIL:

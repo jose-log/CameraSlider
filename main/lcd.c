@@ -11,10 +11,6 @@
 #include <util/delay.h>
 #include <stdlib.h>
 
-const uint8_t ascii_table[] = {
-	0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39
-};
-
 static void lcd_enable(void)
 {
 	PORTB |= (1<<PORTB4);
@@ -105,18 +101,9 @@ void lcd_clear_screen(void)
 	_delay_ms(2);
 }
 
-void lcd_welcome_screen(void)
-{
-	lcd_set_cursor(0,2);
-	lcd_write_str("Slider PRO");
-	lcd_set_cursor(1,1);
-	lcd_write_str("David Logreira");
-	_delay_ms(1000);
-}
-
 void lcd_screen(screen_t screen)
 {
-	uint8_t pro, ctl;
+	uint8_t pro;
 
 	switch(screen){
 
@@ -199,6 +186,64 @@ void lcd_screen(screen_t screen)
 			lcd_set_cursor(1,0);
 			lcd_write_str(" <ERROR>");
 			break;
+
+		case SCREEN_INITIAL_POSITION:
+			lcd_clear_screen();
+			lcd_set_cursor(0,0);
+			lcd_write_str("Initial");
+			lcd_set_cursor(1,0);
+			lcd_write_str("Pos:");
+			lcd_set_cursor(1,8);
+			lcd_write_str("mm");
+			break;
+
+		case SCREEN_FINAL_POSITION:
+			lcd_clear_screen();
+			lcd_set_cursor(0,0);
+			lcd_write_str("Final");
+			lcd_set_cursor(1,0);
+			lcd_write_str("Pos:");
+			lcd_set_cursor(1,8);
+			lcd_write_str("mm");
+			break;
+
+		case SCREEN_CHOOSE_TIME:
+			lcd_clear_screen();
+			lcd_set_cursor(0,0);
+			lcd_write_str("Duration:");
+			break;
+
+		case SCREEN_CHOOSE_REPS:
+			lcd_clear_screen();
+			lcd_set_cursor(0,0);
+			lcd_write_str("Repetitions:");
+			lcd_set_cursor(1,0);
+			lcd_write_str("    times");
+			break;
+
+		case SCREEN_CHOOSE_LOOP:
+			lcd_clear_screen();
+			lcd_set_cursor(0,0);
+			lcd_write_str("Loop:");
+			lcd_set_cursor(1,0);
+			lcd_write_str(" FALSE");
+			break;
+
+		case SCREEN_CHOOSE_ACCEL:
+			lcd_clear_screen();
+			lcd_set_cursor(0,0);
+			lcd_write_str("Accel:");
+			lcd_set_cursor(1,0);
+			lcd_write_str("    %");
+			break;
+
+		case SCREEN_WAIT_TO_GO:
+			lcd_clear_screen();
+			lcd_set_cursor(0,0);
+			lcd_write_str("  PRESS TO GO!  ");
+			lcd_set_cursor(1,0);
+			lcd_write_str(" cam @ init pos ");
+			break;		
 	}
 }
 
@@ -257,7 +302,62 @@ void lcd_update_position(int32_t pos)
 	lcd_write_str(str);
 }
 
+void lcd_update_time(uint16_t time)
+{
+	char str[6];
+
+	lcd_set_cursor(1,0);
+	lcd_write_str("      ");
+	lcd_set_cursor(1,0);
+	if (time < 60) {
+		// display as is
+		ltoa((int16_t)time, str, 10);
+		lcd_write_str(str);
+		lcd_write_char('s');
+	} else if (time < 3600) {
+		// display minutes and seconds
+		uint16_t mins = time / 60;
+		uint16_t secs = time % 60;
+		itoa((int32_t)mins, str, 10);
+		lcd_write_str(str);
+		lcd_write_char('m');
+		if (secs) {
+			itoa((int16_t)secs, str, 10);
+			lcd_write_str(str);
+			lcd_write_char('s');			
+		}
+	} else {
+		// display hours
+		uint16_t hours = time / 3600;
+		itoa((int32_t)hours, str, 10);
+		lcd_write_str(str);
+		lcd_write_char('h');
+	}
+}
+
+void lcd_update_reps(uint8_t r)
+{
+	char str[6];
+
+	lcd_set_cursor(1,0);
+	lcd_write_str("    ");
+	lcd_set_cursor(1,1);
+	itoa((int16_t)r, str, 10);
+	lcd_write_str(str);
+}
+
+void lcd_update_loop(uint8_t l)
+{
+	lcd_set_cursor(1,1);
+	if (l) lcd_write_str("TRUE ");
+	else lcd_write_str("FALSE");
+}
+
 // debug ------------
+
+const uint8_t ascii_table[] = {
+	0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39
+};
 
 void lcd_update_cnt(uint8_t cnt)
 {

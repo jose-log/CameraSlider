@@ -23,6 +23,13 @@ typedef enum {
 	SCREEN_MOTOR_POSITION,
 	SCREEN_MOTOR_SPEED,
 	SCREEN_CHOOSE_SPEED_PROFILE,
+	SCREEN_INITIAL_POSITION,
+	SCREEN_FINAL_POSITION,
+	SCREEN_CHOOSE_TIME,
+	SCREEN_CHOOSE_REPS,
+	SCREEN_CHOOSE_LOOP,
+	SCREEN_CHOOSE_ACCEL,
+	SCREEN_WAIT_TO_GO,
 	SCREEN_FAIL_MESSAGE
 } screen_t;
 
@@ -36,6 +43,9 @@ void lcd_clear_screen(void);
 void lcd_screen(screen_t screen);
 void lcd_update_speed(uint16_t speed);
 void lcd_update_position(int32_t pos);
+void lcd_update_time(uint16_t t);
+void lcd_update_reps(uint8_t r);
+void lcd_update_loop(uint8_t l);
 
 // debug ----------
 void lcd_update_cnt(uint8_t cnt);

@@ -17,11 +17,13 @@ int8_t choose_control_type(void);
 
 int8_t choose_speed_profile(void);
 
-int8_t manual_speed(void);
+int32_t user_set_time(void);
 
-uint8_t manual_position(void);
+int8_t user_set_reps(void);
 
-void user_movement(void);
+int8_t user_set_loop(void);
+
+int8_t user_set_accel(void);
 
 void fail_message(void);
 
