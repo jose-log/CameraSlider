@@ -21,13 +21,6 @@
 #define SPEED_DOWN	0xF3
 #define SPEED_HALT 	0xF0
 
-#define SPEED_MAX 		8000.0		// Valid for MODE_EIGHTH_STEP
-#define ACCEL_MAX 		8000.0		// Valid for MODE_EIGHTH_STEP
-#define ACCEL_MIN 		1862.0		// Valid for 2MHz timer frequency
-
-#define SOFT_STOP 	0x30
-#define HARD_STOP 	0x31
-
 #define CMIN_EIGHTH_STEPPING 	249.0
 
 /******************************************************************************
@@ -110,10 +103,17 @@ int8_t motor_set_maxspeed_percent(uint8_t speed)
 	float a, b;
 
 	a = (float)speed;
-	a = a / 100.0;		// percentage
+	a = a / 100.0;			// percentage
 	b = SPEED_MAX * a;		// Fraction of max speed
 
-	cmin = (f / b) - 1.0;
+	motor_set_maxspeed(b);
+
+	return 0;
+}
+
+int8_t motor_set_maxspeed(float speed)
+{
+	cmin = (f / speed) - 1.0;
 
 	return 0;
 }
@@ -152,7 +152,21 @@ int8_t motor_set_accel_percent(uint8_t accel)
 	// max c0 value is (2^16)-1
 	if (c0 > 65535.0) c0 =  65535.0;
 
+	//debug
+	char str[6];
+	ltoa((int32_t)c0, str, 10);
+	uart_send_string("\n\rc0: ");
+	uart_send_string(str);
+
 	return 0;
+}
+
+int16_t motor_get_accel(void)
+{
+	float f_mot = (float)F_MOTOR;
+	float acc =  2.0 * pow((f_mot / ((c0 + 1) / 0.676)), 2.0);
+
+	return (int16_t)acc;
 }
 
 uint16_t motor_get_speed(void)

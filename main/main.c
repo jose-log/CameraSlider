@@ -166,15 +166,27 @@ int main(void)
 				}
 
 				/*
-				* TIME MOVING: Motor stands still. User enters the time
-				* required to perform the movement.
+				* ACCELERATION: percentage of acceleration range
 				*/
-				x = user_set_time();
+				x = user_set_accel();
 				if (x < 0) {
 					system_state = STATE_CHOOSE_ACTION;
 					break;
 				} else {
-					automatic.time = x;
+					automatic.accel = (int8_t)x;
+				}
+
+				/*
+				* TIME MOVING: Motor stands still. User enters the time
+				* required to perform the movement. It directly determines the
+				* max speed at which the slider will move. Returns speed.
+				*/
+				x = user_set_time(automatic.initial_pos, automatic.final_pos);
+				if (x < 0) {
+					system_state = STATE_CHOOSE_ACTION;
+					break;
+				} else {
+					automatic.speed = x;
 				}
 
 				/*
@@ -186,7 +198,7 @@ int main(void)
 					system_state = STATE_CHOOSE_ACTION;
 					break;
 				} else {
-					automatic.reps = x;
+					automatic.reps = (uint8_t)x;
 				}
 
 				/*
@@ -198,18 +210,7 @@ int main(void)
 					system_state = STATE_CHOOSE_ACTION;
 					break;
 				} else {
-					automatic.loop = x;
-				}
-
-				/*
-				* ACCELERATION: percentage of acceleration range
-				*/
-				x = user_set_accel();
-				if (x < 0) {
-					system_state = STATE_CHOOSE_ACTION;
-					break;
-				} else {
-					automatic.ramp = x;
+					automatic.loop = (uint8_t)x;
 				}
 
 				/*
@@ -224,7 +225,13 @@ int main(void)
 				/*
 				* START automatic movement
 				*/
-				user_gogogo(automatic);
+				x = user_gogogo(automatic);
+				if (x < 0) {
+					system_state = STATE_FAIL;
+					break;
+				} else {
+					system_state = STATE_CHOOSE_ACTION;
+				}
 
 				system_state = STATE_CHOOSE_ACTION;
 				break;

@@ -8,6 +8,7 @@
 #include "motor.h"
 #include "move.h"
 #include "util.h"
+#include "uart.h"
 
 int8_t homing(void);
 
@@ -17,7 +18,7 @@ int8_t choose_control_type(void);
 
 int8_t choose_speed_profile(void);
 
-int32_t user_set_time(void);
+int32_t user_set_time(int32_t xi, int32_t xo);
 
 int8_t user_set_reps(void);
 

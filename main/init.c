@@ -31,7 +31,7 @@ void boot(void)
 
 	// Messasges:
 	lcd_screen(SCREEN_WELCOME);
-	uart_send_string_p(PSTR("#--------------------------\n\r"));
+	uart_send_string_p(PSTR("\n\r#--------------------------\n\r"));
 	uart_send_string_p(PSTR("Hello World!\n\r"));
 }
 

@@ -7,10 +7,31 @@
 * functions where the motor is moving.
 */
 
+/******************************************************************************
+*******************	I N C L U D E   D E P E N D E N C I E S	*******************
+******************************************************************************/
+
 #include "menu.h"
 
 #include <avr/pgmspace.h>
 #include <util/delay.h>
+//debug
+#include <stdlib.h>
+
+/******************************************************************************
+*******************	C O N S T A N T S  D E F I N I T I O N S ******************
+******************************************************************************/
+
+static const uint16_t t[] PROGMEM = {
+	30, 45, 60, 80, 100, 120, 180, 300, 600, 1200, 2400,
+	3600, 7200,	14400, 21600, 28800, 36000, 43200
+};
+
+/******************************************************************************
+******************* F U N C T I O N   D E F I N I T I O N S *******************
+******************************************************************************/
+
+static int32_t find_speed_from_time(float a, float t, float x);
 
 int8_t homing(void){
 /*
@@ -192,27 +213,82 @@ int8_t choose_speed_profile(void){
 	return toggle;
 }
 
-////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////
+/******************************************************************************
+*				FUNCTIONS RELATED TO AUTOMATIC MOVEMENT
+******************************************************************************/
 
-static const uint16_t t[] PROGMEM = {
-	30, 45, 60, 80, 100, 120, 180, 300, 600, 1200, 2400,
-	3600, 7200,	14400, 21600, 28800, 36000, 43200
-};
-
-int32_t user_set_time(void)
+int32_t user_set_time(int32_t xi, int32_t xo)
 {
-	uint8_t i = 1;
-	int32_t out = 1;
+/*
+* The time selected by the user determines the speed at which the slider will
+* move. According to the travel distance, there'll be a minimum time allowed,
+* constrained by the maximum speed at which the slider can travel. 
+* Here, the minimum time allowed is computed and shown to the user, based on
+* the initial and final point, and the acceleration value set by the user.
+*/
+	uint8_t i, i_min;
+	float time;
+	int32_t speed = 0;
 	uint16_t x;
 	struct btn_s *btn = button_get();
 	struct enc_s *encoder = encoder_get();
+
+	// Compute minimum time allowed based on the initial/final slider positions
+	// and the acceleration/deceleration value.
+	float ac = (float)motor_get_accel();
+	float t_ramp = (SPEED_MAX / ac);
+	float x_ramp = ac * pow(t_ramp, 2.0) / 2.0;
+	float x_tot = fabs(xo - xi);		// absolute value
+	float t_min;
+
+	/* 
+	* Two speed profiles are possible according to acceleration and xi/xo:
+	*  v        Profile 1            v  Profile 2
+	*  |      ______________         |
+	*  |     /|            |\        |    /|\
+	*  |    / |            | \       |   / | \
+	*  |___/__|____________|__\__t   |__/__|__\____ t
+	*       t1      t2      t1           t1 t1
+	*
+	* Profile 1: The slider reaches max speed and slided at constant speed for
+	*		some x steps.
+	* Profile 2: The slider does not reach max speed, but it accelerates and
+	* 		decelerates without reaching constant speeds.
+	* For each profiles, the minimum time is computed differently:
+	*/
+	if (x_tot > 2.0 * x_ramp)
+		t_min = (2.0 * t_ramp) + (x_tot - (2.0 * x_ramp)) / SPEED_MAX;
+	else
+		t_min = 2.0 * sqrt((2.0 * (x_tot / 2.0)) / ac);
+		
+	//DEBUG:
+	char str[12];
+	ltoa((int32_t)ac, str, 10);
+	uart_send_string("\n\rac: ");
+	uart_send_string(str);
+	dtostre(t_ramp, str, 3, 0x00);
+	uart_send_string("\n\rt_ramp: ");
+	uart_send_string(str);
+	ltoa((int32_t)x_ramp, str, 10);
+	uart_send_string("\n\rx_ramp: ");
+	uart_send_string(str);
+	ltoa((int32_t)x_tot, str, 10);
+	uart_send_string("\n\rx_tot: ");
+	uart_send_string(str);
+	dtostre(t_min, str, 3, 0x00);
+	uart_send_string("\n\rt_min: ");
+	uart_send_string(str);
+	
+	time = t_min;
+	// minimum index is the value of minimum time (in seconds) rounded to 
+	// the lower integer
+	i_min = (uint8_t)trunc(time);
+	i = i_min;
 	
 	// LCD screen
 	lcd_screen(SCREEN_CHOOSE_TIME);
-	lcd_update_time(out);
+	lcd_update_time(time);
+
 	uart_send_string_p(PSTR("\n\r> Time duration"));
 
 	while(TRUE){
@@ -229,12 +305,16 @@ int32_t user_set_time(void)
 				if (i < 20 + (sizeof(t)/sizeof(uint16_t)))
 					i++;
 			} else if (encoder->dir == CCW) {
-				if (i > 1)
+				if (i > i_min)
 					i--;
 			}
-			if (i <= 20) out = (uint16_t)i;
-			else out = pgm_read_word(&t[i - 21]);
-			lcd_update_time(out);
+			if (i <= 20) {
+				if (i > i_min) time = (float)i;
+				else if (i == i_min) time = t_min;
+			} else {
+				time = (float)pgm_read_word(&t[i - 21]);
+			}
+			lcd_update_time(time);
 		}
 		
 		// Check encoder button
@@ -247,17 +327,25 @@ int32_t user_set_time(void)
 		}
 		if((btn->action) && (btn->delay3)){
 			btn->action = FALSE;
-			out = -1;
+			speed = -1;
 			break;
 		}
 	}
 
-	return out;
+	// Find the speed value from the time the user chose.
+	if (speed != -1) {
+		if (time == t_min)
+			speed = SPEED_MAX;
+		else
+			speed = find_speed_from_time(ac, time, x_tot);
+	}
+	
+	return speed;
 }
 
 int8_t user_set_reps(void)
 {
-	int8_t i = 0;
+	int8_t i = 1;
 	uint16_t x;
 	struct btn_s *btn = button_get();
 	struct enc_s *encoder = encoder_get();
@@ -281,7 +369,7 @@ int8_t user_set_reps(void)
 				if (i < 20)
 					i++;
 			} else if (encoder->dir == CCW) {
-				if (i > 0)
+				if (i > 1)
 					i--;
 			}
 			lcd_update_reps(i);
@@ -357,9 +445,10 @@ int8_t user_set_accel(void)
 	
 	// LCD screen
 	lcd_screen(SCREEN_CHOOSE_ACCEL);
-	motor_set_accel_percent(i);
 	lcd_update_reps(i);
 	uart_send_string_p(PSTR("\n\r> Acceleration"));
+
+	motor_set_accel_percent(i);
 
 	while(TRUE){
 
@@ -372,14 +461,14 @@ int8_t user_set_accel(void)
 		if(encoder->update){
 			encoder->update = FALSE;
 			if (encoder->dir == CW) {
-				if (i < 100)
-					i += 5;
+				if (i < 100) i += 5;
+				else i = 100;
 			} else if (encoder->dir == CCW) {
-				if (i > 1)
-					i -= 5;
+				if (i > 1) i -= 5;
+				else i = 0;
 			}
-			motor_set_accel_percent(i);
 			lcd_update_reps(i);
+			motor_set_accel_percent(i);
 		}
 		
 		// Check encoder button
@@ -403,4 +492,30 @@ int8_t user_set_accel(void)
 void fail_message(void){
 
 	lcd_screen(SCREEN_FAIL_MESSAGE);	
+}
+
+static int32_t find_speed_from_time(float a, float t, float x)
+{
+/* To find the speed at which the slider must travel in order to spend t time
+* a quadratic expression must be solved.
+*  v
+*  |      ______________
+*  |     /|            |\
+*  |    / |            | \
+*  |___/__|____________|__\__t
+*       t1      t2      t1
+*/
+	float _a = a;
+	float _b = -1.0 * a * t;
+	float _c = x;
+
+	float _b2 = pow(_b, 2.0);
+	float _4ac = 4.0 * _a * _c;
+
+	float root = sqrt(_b2 - _4ac);
+	float t1 = ((-1.0 * _b) - root) / (2.0 * _a);
+
+	int32_t v = (int32_t)(t1 * a);
+
+	return v;
 }

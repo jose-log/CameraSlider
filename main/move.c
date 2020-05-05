@@ -11,6 +11,7 @@
 
 #include <util/delay.h>
 #include <avr/pgmspace.h>
+#include <stdlib.h>
 
 int8_t homing_cycle(void){
 	
@@ -201,9 +202,9 @@ int32_t user_set_position(uint8_t p)
 	lcd_update_position(motor_get_position());
 
 	// Trim motor parameters
-	motor_set_maxspeed_percent(100);
-	motor_set_accel_percent(50);
 	motor_set_speed_profile(PROFILE_LINEAR);
+	motor_set_maxspeed_percent(100);
+	motor_set_accel_percent(100);
 
 	while(TRUE){
 
@@ -257,16 +258,21 @@ int32_t user_set_position(uint8_t p)
 	return (out ? motor_get_position() : -1);
 }
 
-void user_go_to_init(int32_t pos)
+int8_t user_go_to_init(int32_t pos)
 {
 	int8_t out = FALSE;
+	uint16_t x, xi = 0;
 	struct btn_s *btn = button_get();
-	struct enc_s *encoder = encoder_get();
 
 	// LCD screen:
 	lcd_screen(SCREEN_WAIT_TO_GO);
 
-	motor_move_to_pos_block(pos);
+	// Trim motor parameters
+	// acceleration was already set by the user.
+	// Max speed is computed and set properly in user_gogogo()
+	motor_set_maxspeed_percent(100);
+	
+	motor_move_to_pos_block(pos, ABS, TRUE);
 
 	while (TRUE) {
 
@@ -296,22 +302,122 @@ void user_go_to_init(int32_t pos)
 	return out;
 }
 
-/*
-struct auto_s {
-	int32_t initial_pos;
-	int32_t final_pos;
-	int32_t time;
-	uint8_t reps;
-	uint8_t loop;		// flag
-	int8_t ramp;
-	uint8_t go; 		// flag
-};
-*/
-void user_gogogo(struct auto_s m)
+int8_t user_gogogo(struct auto_s m)
 {
-	int32_t steps_ahead = m.initial_pos - m.final;
-	int32_t speed = labs(steps_ahead / m.time);
+	int8_t out = FALSE;
+	uint16_t x, xi = 0;
+	uint16_t secs = 0;
+	int32_t steps_ahead = m.final_pos - m.initial_pos;
+	struct btn_s *btn = button_get();
+
+	int8_t state = 0;
+
+	// LCD screen:
+	lcd_screen(SCREEN_GO);
+	uart_send_string_p(PSTR("\n\r> Go go go!"));
+	lcd_update_time_remaining(secs);
 	
-	motor_set_maxspeed_percent(100);
-	automatic.time
+	// Trim motor parameters. Requires revision: Integer operations may lead to lack of resolution
+	// when dealing with very low speeds
+	
+	//debug
+	char str[12];
+	ltoa(m.speed, str, 10);
+	uart_send_string("\n\rspd: ");
+	uart_send_string(str);
+	ltoa(steps_ahead, str, 10);
+	uart_send_string(" | ahead: ");
+	uart_send_string(str);
+
+	motor_set_speed_profile(PROFILE_LINEAR);
+	motor_set_maxspeed((float)m.speed);
+	motor_set_accel_percent((uint8_t)m.accel);
+
+	uint8_t current_rep = 0;
+
+	while(TRUE){
+
+		// timing for loop execution
+		clear_millis();
+		x = 0;
+		while(!x) x = millis();
+		xi++;
+
+		switch (state) {
+			case 0:
+				// Go without blocking movement
+				motor_move_to_pos(steps_ahead, ABS, TRUE);
+				state = 1;
+				break;
+
+			case 1:
+				// poll until it reaches the final position.
+				if (motor_get_position() == m.final_pos) {
+					if (m.reps == 1) {
+						// Finished.
+						state = 4;
+					} else {
+						// go back to init_pos
+						steps_ahead = m.initial_pos - motor_get_position();
+						state = 2;
+					}
+				}
+				break;
+
+			case 2:
+				// Go without blocking movement
+				motor_move_to_pos(steps_ahead, ABS, TRUE);
+				state = 3;
+				break;
+
+			case 3:
+				// poll until it reaches the final position.
+				if (motor_get_position() == m.initial_pos) {
+					current_rep++;
+					if (m.reps == current_rep) {
+						state = 4;
+					} else {
+						steps_ahead = m.final_pos - motor_get_position();
+						state = 0;
+					}
+				}
+				break;
+
+			case 4:
+				uart_send_string_p(PSTR("\n\r < FIISHED >"));
+				state = 5;
+				break;
+
+			case 5:
+				break;
+				
+		}
+		
+		// update display every 100ms
+		if (!(xi % 1000) && (state != 5)) {
+			secs++;
+			lcd_update_time_remaining(secs);
+			xi = 0;
+		}
+		
+		// Check encoder button
+		if(btn->query) button_check();
+		
+		// Check action to be taken
+		if((btn->action) && (btn->state == BTN_RELEASED) && (!btn->delay1)){
+			btn->action = FALSE;
+			out = TRUE;
+			motor_stop(HARD_STOP);
+			break;
+		}
+
+		if(btn->action && btn->delay3){
+			btn->action = FALSE;
+			out = -1;
+			motor_stop(SOFT_STOP);
+			break;
+		}
+	}
+
+	return out;
 }

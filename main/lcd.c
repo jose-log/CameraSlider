@@ -243,6 +243,16 @@ void lcd_screen(screen_t screen)
 			lcd_write_str("  PRESS TO GO!  ");
 			lcd_set_cursor(1,0);
 			lcd_write_str(" cam @ init pos ");
+			break;
+
+		case SCREEN_GO:
+			lcd_clear_screen();
+			lcd_set_cursor(0,0);
+			lcd_write_str("> GO!!!");
+			lcd_set_cursor(0,15);
+			lcd_write_str("%");
+			lcd_set_cursor(1,0);
+			lcd_write_str("time:");
 			break;		
 	}
 }
@@ -302,22 +312,26 @@ void lcd_update_position(int32_t pos)
 	lcd_write_str(str);
 }
 
-void lcd_update_time(uint16_t time)
+void lcd_update_time(float time)
 {
 	char str[6];
 
 	lcd_set_cursor(1,0);
 	lcd_write_str("      ");
 	lcd_set_cursor(1,0);
-	if (time < 60) {
+	if (time < 60.0) {
 		// display as is
-		ltoa((int16_t)time, str, 10);
+		float time_int = (int32_t)time;
+		if ((time - time_int) == 0.0) 
+			ltoa((int16_t)time, str, 10);
+		else 
+			dtostrf(time, 3, 1, str);
 		lcd_write_str(str);
 		lcd_write_char('s');
-	} else if (time < 3600) {
+	} else if (time < 3600.0) {
 		// display minutes and seconds
-		uint16_t mins = time / 60;
-		uint16_t secs = time % 60;
+		uint16_t mins = (uint16_t)time / 60;
+		uint16_t secs = (uint16_t)time % 60;
 		itoa((int32_t)mins, str, 10);
 		lcd_write_str(str);
 		lcd_write_char('m');
@@ -328,7 +342,7 @@ void lcd_update_time(uint16_t time)
 		}
 	} else {
 		// display hours
-		uint16_t hours = time / 3600;
+		uint16_t hours = (uint16_t)time / 3600.0;
 		itoa((int32_t)hours, str, 10);
 		lcd_write_str(str);
 		lcd_write_char('h');
@@ -351,6 +365,19 @@ void lcd_update_loop(uint8_t l)
 	lcd_set_cursor(1,1);
 	if (l) lcd_write_str("TRUE ");
 	else lcd_write_str("FALSE");
+}
+
+void lcd_update_time_remaining(uint16_t t)
+{
+	char str[6];
+
+	lcd_set_cursor(1,5);
+	lcd_write_str("      ");
+	lcd_set_cursor(1,5);
+
+	ltoa((uint32_t)t, str, 10);
+	lcd_write_str(str);
+	lcd_write_char('s');
 }
 
 // debug ------------
