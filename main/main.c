@@ -30,6 +30,7 @@ typedef enum {
 	STATE_CHOOSE_ACTION,
 	STATE_MANUAL_MOVEMENT,
 	STATE_CREATE_MOVEMENT,
+	STATE_START_MOVEMENT,
 	STATE_FAIL
 } state_t;
 
@@ -213,6 +214,10 @@ int main(void)
 					automatic.loop = (uint8_t)x;
 				}
 
+				system_state = STATE_START_MOVEMENT;
+				break;
+
+			case STATE_START_MOVEMENT:
 				/*
 				* Go to initial position:
 				*/
@@ -226,14 +231,13 @@ int main(void)
 				* START automatic movement
 				*/
 				x = user_gogogo(automatic);
-				if (x < 0) {
-					system_state = STATE_FAIL;
-					break;
-				} else {
+				if (x < 0)
 					system_state = STATE_CHOOSE_ACTION;
-				}
+				else if (x == TRUE)
+					system_state = STATE_START_MOVEMENT;
+				else
+					system_state = STATE_FAIL;
 
-				system_state = STATE_CHOOSE_ACTION;
 				break;
 
 			case STATE_FAIL:

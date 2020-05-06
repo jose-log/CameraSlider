@@ -249,11 +249,25 @@ void lcd_screen(screen_t screen)
 			lcd_clear_screen();
 			lcd_set_cursor(0,0);
 			lcd_write_str("> GO!!!");
-			lcd_set_cursor(0,15);
-			lcd_write_str("%");
 			lcd_set_cursor(1,0);
 			lcd_write_str("time:");
 			break;		
+
+		case SCREEN_FINISHED:
+			lcd_set_cursor(0,0);
+			lcd_write_str("> FINISHED");
+			lcd_set_cursor(0,12);
+			lcd_write_str("100%");
+			lcd_set_cursor(1,10);
+			lcd_write_str("reset?");
+			break;		
+
+		case SCREEN_STOP:
+			lcd_set_cursor(0,0);
+			lcd_write_str("> STOPPED  ");
+			lcd_set_cursor(1,10);
+			lcd_write_str("reset?");
+			break;				
 	}
 }
 
@@ -367,7 +381,7 @@ void lcd_update_loop(uint8_t l)
 	else lcd_write_str("FALSE");
 }
 
-void lcd_update_time_remaining(uint16_t t)
+void lcd_update_time_moving(uint16_t t)
 {
 	char str[6];
 
@@ -375,9 +389,53 @@ void lcd_update_time_remaining(uint16_t t)
 	lcd_write_str("      ");
 	lcd_set_cursor(1,5);
 
-	ltoa((uint32_t)t, str, 10);
+	if (t < 60) {
+		// display as is
+		itoa(t, str, 10);
+		lcd_write_str(str);
+		lcd_write_char('s');
+	} else if (t < 3600.0) {
+		// display minutes and seconds
+		uint16_t mins = t / 60;
+		uint16_t secs = t % 60;
+		itoa(mins, str, 10);
+		lcd_write_str(str);
+		lcd_write_char('m');
+		itoa(secs, str, 10);
+		lcd_write_str(str);
+		lcd_write_char('s');
+	} else {
+		// display hours and minutes
+		uint16_t hours = t / 3600;
+		itoa(hours, str, 10);
+		lcd_write_str(str);
+		lcd_write_char('h');
+		uint16_t mins = t % 3600;
+		mins = mins / 60;
+		itoa(mins, str, 10);
+		lcd_write_str(str);
+		lcd_write_char('m');
+	}
+}
+
+void lcd_update_percent(int8_t percentage)
+{
+	char str[5];
+
+	lcd_set_cursor(0,12);
+	lcd_write_str("   ");
+	lcd_set_cursor(0,12);
+
+	itoa(percentage, str, 10);
 	lcd_write_str(str);
-	lcd_write_char('s');
+	lcd_write_char('%');
+
+}
+
+void lcd_write_loop(void)
+{
+	lcd_set_cursor(0,11);
+	lcd_write_str("LOOP ");
 }
 
 // debug ------------

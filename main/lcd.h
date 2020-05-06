@@ -31,6 +31,8 @@ typedef enum {
 	SCREEN_CHOOSE_ACCEL,
 	SCREEN_WAIT_TO_GO,
 	SCREEN_GO,
+	SCREEN_FINISHED,
+	SCREEN_STOP,
 	SCREEN_FAIL_MESSAGE
 } screen_t;
 
@@ -47,7 +49,10 @@ void lcd_update_position(int32_t pos);
 void lcd_update_time(float t);
 void lcd_update_reps(uint8_t r);
 void lcd_update_loop(uint8_t l);
-void lcd_update_time_remaining(uint16_t t);
+void lcd_update_time_moving(uint16_t t);
+void lcd_update_percent(int8_t percentage);
+
+void lcd_write_loop(void);
 
 // debug ----------
 void lcd_update_cnt(uint8_t cnt);

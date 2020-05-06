@@ -23,8 +23,9 @@
 ******************************************************************************/
 
 static const uint16_t t[] PROGMEM = {
-	30, 45, 60, 80, 100, 120, 180, 300, 600, 1200, 2400,
-	3600, 7200,	14400, 21600, 28800, 36000, 43200
+	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+	30, 45, 60, 80, 100, 120, 180, 300, 600, 1200, 2400, 3600, 7200, 14400,
+	21600, 28800, 36000, 43200
 };
 
 /******************************************************************************
@@ -226,7 +227,7 @@ int32_t user_set_time(int32_t xi, int32_t xo)
 * Here, the minimum time allowed is computed and shown to the user, based on
 * the initial and final point, and the acceleration value set by the user.
 */
-	uint8_t i, i_min;
+	uint8_t i = 0;
 	float time;
 	int32_t speed = 0;
 	uint16_t x;
@@ -260,6 +261,10 @@ int32_t user_set_time(int32_t xi, int32_t xo)
 		t_min = (2.0 * t_ramp) + (x_tot - (2.0 * x_ramp)) / SPEED_MAX;
 	else
 		t_min = 2.0 * sqrt((2.0 * (x_tot / 2.0)) / ac);
+
+	// Compute maximum time allowed based on the minimum speed at which the
+	// slider is able to move (maximum OCR1A value, w/out changing f)
+	float t_max = x_tot / SPEED_MIN;
 		
 	//DEBUG:
 	char str[12];
@@ -278,14 +283,23 @@ int32_t user_set_time(int32_t xi, int32_t xo)
 	dtostre(t_min, str, 3, 0x00);
 	uart_send_string("\n\rt_min: ");
 	uart_send_string(str);
-	
-	time = t_min;
+	dtostre(t_max, str, 3, 0x00);
+	uart_send_string("\n\rt_max: ");
+	uart_send_string(str);
+
 	// minimum index is the value of minimum time (in seconds) rounded to 
 	// the lower integer
-	i_min = (uint8_t)trunc(time);
-	i = i_min;
+	for (uint8_t m = 0; m < sizeof(t)/sizeof(uint16_t); m++) {
+		float v = pgm_read_word(&t[m]);
+		if (v > t_min) {
+			if (m > 0) i = m - 1;
+			else i = 0;
+			break;
+		}
+	}
 	
 	// LCD screen
+	time = t_min;
 	lcd_screen(SCREEN_CHOOSE_TIME);
 	lcd_update_time(time);
 
@@ -301,19 +315,22 @@ int32_t user_set_time(int32_t xi, int32_t xo)
 		// lcd options
 		if (encoder->update) {
 			encoder->update = FALSE;
+			float v = (float)pgm_read_word(&t[i]);
 			if (encoder->dir == CW) {
-				if (i < 20 + (sizeof(t)/sizeof(uint16_t)))
-					i++;
+				if (i < sizeof(t)/sizeof(uint16_t))
+					if (v < t_max)
+						i++;
 			} else if (encoder->dir == CCW) {
-				if (i > i_min)
-					i--;
+				if (i > 0)
+					if (v > t_min)
+						i--;
 			}
-			if (i <= 20) {
-				if (i > i_min) time = (float)i;
-				else if (i == i_min) time = t_min;
-			} else {
-				time = (float)pgm_read_word(&t[i - 21]);
-			}
+
+			v = (float)pgm_read_word(&t[i]);
+			if (v >= t_max)	time = t_max;
+			else if (v <= t_min) time = t_min;
+			else time = v;
+
 			lcd_update_time(time);
 		}
 		
@@ -491,7 +508,8 @@ int8_t user_set_accel(void)
 
 void fail_message(void){
 
-	lcd_screen(SCREEN_FAIL_MESSAGE);	
+	lcd_screen(SCREEN_FAIL_MESSAGE);
+	_delay_ms(1000);
 }
 
 static int32_t find_speed_from_time(float a, float t, float x)

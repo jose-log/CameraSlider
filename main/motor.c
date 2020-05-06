@@ -113,7 +113,15 @@ int8_t motor_set_maxspeed_percent(uint8_t speed)
 
 int8_t motor_set_maxspeed(float speed)
 {
-	cmin = (f / speed) - 1.0;
+/*
+* Check for minimum speed: 
+* 	- max cmin: 2^16 - 1
+*	- speed min: f_timer / (max_cmin + 1) = 30,52Hz
+*/
+	if (speed > SPEED_MIN)
+		cmin = (f / speed) - 1.0;
+	else
+		cmin = CMIN_MAX;
 
 	return 0;
 }
@@ -205,9 +213,9 @@ void motor_set_position(int32_t p)
 	current_pos = p;
 }
 
-volatile uint8_t *motor_get_dir(void)
+uint8_t motor_get_dir(void)
 {
-	return &dir;
+	return dir;
 }
 
 void motor_stop(uint8_t type) 
@@ -222,6 +230,11 @@ void motor_stop(uint8_t type)
 		if (dir == CW) target_pos = current_pos + 1;
 		else if (dir == CCW) target_pos = current_pos - 1;
 	}
+}
+
+uint8_t motor_working(void)
+{
+	return timer_speed_check();
 }
 
 void motor_move_to_pos(int32_t p, uint8_t mode, uint8_t limits)

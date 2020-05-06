@@ -1,13 +1,7 @@
 
 TODO:
 
-> Implement all the movement creation menu
-
-Manual movement:
-
-> Max speed as a configuration parameter
-> Acceleration/Deceleration speed also as a config parameter
-> Display: include target position
+> Document the code
 
 > Review xxx/CameraSlider repos on github
 > Review esp8266 based projects for cammera slider
