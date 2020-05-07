@@ -2,10 +2,18 @@
 #ifndef LCD_H_
 #define LCD_H_
 
+/******************************************************************************
+*******************	I N C L U D E   D E P E N D E N C I E S	*******************
+******************************************************************************/
+
 #include "config.h"
 #include "motor.h"
 
 #include <stdint.h>
+
+/******************************************************************************
+*******************	C O N S T A N T S  D E F I N I T I O N S ******************
+******************************************************************************/
 
 #define LCD_CLEAR_DISPLAY		0b00000001
 #define LCD_FUNCTION_SET		0b00101000		// Data length 4 bits; Display lines 2; Character font 5x7 dots
@@ -36,6 +44,10 @@ typedef enum {
 	SCREEN_FAIL_MESSAGE
 } screen_t;
 
+/******************************************************************************
+******************** F U N C T I O N   P R O T O T Y P E S ********************
+******************************************************************************/
+
 void lcd_send_byte(uint8_t rs, uint8_t data);
 void lcd_init(void);
 void lcd_write_char(char c);
@@ -53,8 +65,5 @@ void lcd_update_time_moving(uint16_t t);
 void lcd_update_percent(int8_t percentage);
 
 void lcd_write_loop(void);
-
-// debug ----------
-void lcd_update_cnt(uint8_t cnt);
 
 #endif /* LCD_H_ */

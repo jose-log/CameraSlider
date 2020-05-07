@@ -1,4 +1,8 @@
 
+/*
+* Driver A4988 interface module
+*/
+
 /******************************************************************************
 *******************	I N C L U D E   D E P E N D E N C I E S	*******************
 ******************************************************************************/
@@ -9,9 +13,17 @@
 #include <util/delay.h>
 
 /******************************************************************************
-******************** F U N C T I O N   P R O T O T Y P E S ********************
+******************* F U N C T I O N   D E F I N I T I O N S *******************
 ******************************************************************************/
 
+/*===========================================================================*/
+/*
+* STEPPING MODE:
+* Even though all possible stepping modes included in the driver are available
+* to be selected, all movement computations are based on the MODE_EIGHTH_STEP.
+*
+* Toggles the Driver Pins to select the proper stepping mode.
+*/
 void drv_step_mode(uint8_t mode)
 {
 	switch(mode){
@@ -54,6 +66,17 @@ void drv_step_mode(uint8_t mode)
 	}
 }
 
+/*===========================================================================*/
+/*
+* Driver spin direction.
+* - Toggles the driver direction pin to select the proper direction
+* - Modifies the "dir" variable value, to avoid manually doing it outside of
+* 	this function.
+* 
+* Parameters:
+*	- dir: Clock Wise or Counter Clock Wise
+* 	- *var: direction variable pointer
+*/
 void drv_dir(uint8_t dir, volatile uint8_t *var)
 {
 	if(dir == CW) {
@@ -65,6 +88,11 @@ void drv_dir(uint8_t dir, volatile uint8_t *var)
 	}
 }
 
+/*===========================================================================*/
+/*
+* Driver ENABLE/DISABLE
+* Toggles driver ENable pin
+*/
 void drv_set(uint8_t state)
 {
 	if (state) {
@@ -76,6 +104,13 @@ void drv_set(uint8_t state)
 
 }
 
+/*===========================================================================*/
+/*
+* Driver Reset
+* Toggles driver Reset pin to reset the internal driver counter.
+* When used, the driver forgets the current motor windings energization state
+* and resets the internal counter.
+*/
 void drv_reset(void)
 {
 	DRV_RST_PORT &= ~(1<<DRV_RST_PIN);

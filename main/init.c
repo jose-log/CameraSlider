@@ -1,4 +1,9 @@
 
+/*
+* Initialization code:
+* Pin/Ports configuration and initial modules initialization
+*/
+
 /******************************************************************************
 *******************	I N C L U D E   D E P E N D E N C I E S	*******************
 ******************************************************************************/
@@ -7,6 +12,7 @@
 
 #include <avr/io.h>
 #include <avr/pgmspace.h>
+#include <util/delay.h>
 
 /******************************************************************************
 ******************* F U N C T I O N   D E F I N I T I O N S *******************
@@ -14,6 +20,10 @@
 
 static void ports_init(void);
 
+/*===========================================================================*/
+/*
+* Modules initialization, and initial LCD screen presentation
+*/
 void boot(void)
 {
 	ports_init();
@@ -31,10 +41,21 @@ void boot(void)
 
 	// Messasges:
 	lcd_screen(SCREEN_WELCOME);
-	uart_send_string_p(PSTR("\n\r#--------------------------\n\r"));
-	uart_send_string_p(PSTR("Hello World!\n\r"));
+	DEBUG_P("\n\r#--------------------------\n\r");
+	DEBUG_P("Hello World!\n\r");
+
+	_delay_ms(1000);
 }
 
+/*-----------------------------------------------------------------------------
+--------------------- I N T E R N A L   F U N C T I O N S ---------------------
+-----------------------------------------------------------------------------*/
+
+/*===========================================================================*/
+/*
+* Ports initialization:
+* Function entirely dependent on MCU/platform configuration
+*/
 static void ports_init(void)
 {	
 	// Encoder pins (INT0/1)

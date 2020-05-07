@@ -4,6 +4,9 @@
 
 #include <stdint.h>
 
+// Globa.
+extern volatile uint16_t ms;
+
 void timer_speed_init(void);
 
 void timer_general_init(void);

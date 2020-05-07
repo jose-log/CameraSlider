@@ -1,4 +1,9 @@
 
+/*
+* Rotary encoder interface module.
+* Simple 20 steps per rotation rotary encoder is used. It also includes a 
+* simple NO (normally open) pushbutton in the rotation axle.
+*/
 /******************************************************************************
 *******************	I N C L U D E   D E P E N D E N C I E S	*******************
 ******************************************************************************/
@@ -29,6 +34,8 @@
 ****************** V A R I A B L E S   D E F I N I T I O N S ******************
 ******************************************************************************/
 
+// Internal structures that are only exposed to external modules through 
+// functions passing arguments by value or by reference
 static struct enc_s encoder;
 static struct btn_s btn;
 
@@ -40,13 +47,17 @@ static volatile uint8_t limit_switch;
 
 static void init_defaults(void);
 
-void encoder_init(void){
-/*	
+/*===========================================================================*/
+/*
+* Encoder initialization: Enable external interrupts. Pin description:
+*	
 *	Enc_A		- PD2 - INT0
 *	Enc_B		- PD3 - INT1
 *	Enc_btn		- PC3 - PCINT11 | PCI1
 *	Only Enc_A signal is necessary to trigger the ISR.
 */
+void encoder_init(void)
+{
 	// Falling edge of INT0 triggers ISR
 	EICRA |= (1<<ISC01);
 
@@ -61,15 +72,26 @@ void encoder_init(void){
 	init_defaults();
 }
 
-void limit_switch_init(void)
-{
+/*===========================================================================*/
 /*
+* Limit switch initialization: This is the limit switch located at the begginig
+* of the rail, used to signal the absolute initial point of reference (origin)
+* Pin description:
+*
 *	SW	- PC4 - PCINT12 | -> PCI1
 */
-	PCICR |= (1<<PCIE1);	// Enables pin toggle interrupt
+void limit_switch_init(void)
+{
+	// Enables pin toggle interrupt
+	PCICR |= (1<<PCIE1);
 	PCMSK1 |= (1<<PCINT12);
 }
 
+/*===========================================================================*/
+/*
+* Limit switch ISR state: There may be situations where only the limit switch
+* ISR needs to be disabled. This function enables/disables that ISR
+*/
 void limit_switch_ISR(uint8_t state)
 {
 	if (state == ENABLE)
@@ -78,51 +100,74 @@ void limit_switch_ISR(uint8_t state)
 		PCMSK1 &= ~(1<<PCINT12);	
 }
 
+/*===========================================================================*/
 uint8_t encoder_get_update(void)
 {
 	return encoder.update;
 }
 
+/*===========================================================================*/
 void encoder_set_update(uint8_t state)
 {
 	encoder.update = state;
 }
 
+/*===========================================================================*/
 uint8_t encoder_get_dir(void)
 {
 	return encoder.dir;
 }
 
+/*===========================================================================*/
 struct enc_s *encoder_get(void)
 {
 	return &encoder;
 }
 
-/*----------------------------------------------------------------------------*
-*----------------------------------------------------------------------------*/
-
+/*===========================================================================*/
 volatile uint8_t *limit_switch_get(void)
 {
 	return &limit_switch;
 }
 
+/*===========================================================================*/
 uint8_t limit_switch_test(void)
 {
 	// If pressed, return TRUE.
 	return !SWITCH;
 }
 
+/*===========================================================================*/
 struct btn_s *button_get(void)
 {
 	return &btn;
 }
 
+/*===========================================================================*/
 uint8_t button_test(void)
 {
 	// if pressed, return TRUE
 	return !BUTTON;
 }
 
+/*===========================================================================*/
+/*
+* Button Debounce routine.
+* This is a slightly ellaborated, non-blocking debounce routine that depends
+* on some conditions in order to work properly:
+* 	- Must be called at a regular interval (i.e. 1ms)
+*	- Internal state variables must be regularly checked to find out whether
+*		the user has pressed the button.
+* Its versatility extends to being able to detect the following events:
+*	- short press: press time < BTN_DLY1_TIME
+* 	- medium press: press time < BTN_DLY2_TIME
+* 	- large press: press time < BTN_DLY3_TIME
+* 	- lock time: after releasing button, it sets a BTN_LOCK_TIME where succesive
+*		pressing is rejected, thus, accounting for bouncing.
+*
+* Basically the algorithm is based on a pseudo-FSM that advances through the 
+* possible states through counters of events (elapsed times).
+*/
 void button_check(void)
 { 
 	switch(btn.state){
@@ -177,6 +222,11 @@ void button_check(void)
 	}
 }
 
+/*-----------------------------------------------------------------------------
+--------------------- I N T E R N A L   F U N C T I O N S ---------------------
+-----------------------------------------------------------------------------*/
+
+/*===========================================================================*/
 static void init_defaults(void)
 {
 	encoder.update = FALSE;
@@ -200,6 +250,7 @@ static void init_defaults(void)
 *******************************************************************************
 ******************************************************************************/
 
+/*===========================================================================*/
 ISR(INT0_vect){
 	
 	encoder.update = TRUE;
@@ -208,11 +259,16 @@ ISR(INT0_vect){
 	else encoder.dir = CCW;
 }
 
-ISR(PCINT1_vect){
+/*===========================================================================*/
 /*
-	BTN - PC3 - PCINT11 | -> PCI1 (Encoder push button)
-	SW	- PC4 - PCINT12 | -> PCI1 (Slider Limit Switch)
+* Encoder button and limit switch ISRs are mixed into the same ISR vector,
+* thus, the ISR code must determine which pin triggered the ISR.
+* Pin description:
+* 
+*	BTN - PC3 - PCINT11 | -> PCI1 (Encoder push button)
+*	SW	- PC4 - PCINT12 | -> PCI1 (Slider Limit Switch)
 */
+ISR(PCINT1_vect){
     if((!SWITCH) && (!limit_switch)) {
     	limit_switch = TRUE;
     	// Here, there must be a more elaborate piece of code to handle

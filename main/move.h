@@ -22,7 +22,7 @@ struct auto_s {
 	uint8_t go; 		// flag
 };
 
-int8_t homing_cycle(void);
+int8_t homing(void);
 
 int8_t manual_speed(void);
 

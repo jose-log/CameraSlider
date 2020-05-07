@@ -1,4 +1,18 @@
 
+/*
+* Motor module. 
+* This module includes all functions encharged to perform all the motor 
+* movement variations. It controls its position, speed and acceleration.
+* Some mathematical processing is required to build the speed profiles.
+*
+* For a full understanding of this module, refer to the David Austin paper
+* titled "Generate stepper-motor speed profiles in real time". The paper
+* describes the algorithm and its foundation. This implementation is based on
+* Interrupt Service Routines, which I think presents some advantages with
+* respect to the popular AccelStepper Arduino library, which is based on
+* polling to achieve smooth movements.
+*/
+
 /******************************************************************************
 *******************	I N C L U D E   D E P E N D E N C I E S	*******************
 ******************************************************************************/
@@ -59,6 +73,23 @@ static void queue_speed_motion(int8_t s);
 static float get_cmin(uint8_t percent);
 static void next_cn(void);
 
+/*===========================================================================*/
+/*
+* Sets initial motor parameters.
+* Sets stepping mode as EIGHTH STEPPING. Even though any other stepping mode
+* can be selected, all subsequent calculations are based on this stepping mode.
+*
+* Eighth stepping mode was chosen as a compromise between some factors:
+* - pros:
+*	- smoother movements at low speeds
+*	- less motor noise (paramount for video recording)
+* 	- reasonable max/min speed, 
+*	- reasonable acceleration
+* - cons:
+*	- less time for the CPU between interrupts (i.e. for calculations)
+*	- limited max speed
+* 	- way more heat dissipation in the driver MOSFETS (bigger heatsink required)
+*/
 void motor_init(void)
 {
 	drv_reset();
@@ -77,6 +108,15 @@ void motor_init(void)
 	queue_full = FALSE;
 }
 
+/*===========================================================================*/
+/*
+* Sets speed profile
+* 	- linear profile
+*	- quadratic profile
+* Any change in speed profile requires recalculation of c0, which is performed
+* within motor_set_accel_percent(). Thus, notice that after every speed profile
+* change, acceleration is always maximum
+*/
 void motor_set_speed_profile(uint8_t p)
 {
 	if (p == PROFILE_LINEAR) {
@@ -88,14 +128,15 @@ void motor_set_speed_profile(uint8_t p)
 	motor_set_accel_percent(100);
 }
 
-int8_t motor_set_maxspeed_percent(uint8_t speed) 
-{
+/*===========================================================================*/
 /*
 * Max speed is mechanically constrained: By testing, higher speeds provoke
 * the motor to run out of sync
 * Min speed is limited by the resolution of the percent given (which is an
-* integer), thus, 1% is the minimum
+* integer), thus, 0% is the minimum (but doesn't mean zero speed)
 */
+int8_t motor_set_maxspeed_percent(uint8_t speed) 
+{
 	// check for a valid value and state
 	// Updates cannot happen while motor is moving!
 	if ((speed > 100) || (speed == 0) || (state != SPEED_HALT)) return -1;
@@ -111,6 +152,13 @@ int8_t motor_set_maxspeed_percent(uint8_t speed)
 	return 0;
 }
 
+/*===========================================================================*/
+/*
+* Speed is controlled through the timer compare register value. 
+* The function makes sure not to select a speed higher than the highest 
+* possible by making sure that the timer compare register value may not 
+* overflow.
+*/
 int8_t motor_set_maxspeed(float speed)
 {
 /*
@@ -126,8 +174,7 @@ int8_t motor_set_maxspeed(float speed)
 	return 0;
 }
 
-int8_t motor_set_accel_percent(uint8_t accel) 
-{
+/*===========================================================================*/
 /*
 * Acceleration varies between a certain max and min range, determined by the
 * physical constraints:
@@ -139,6 +186,8 @@ int8_t motor_set_accel_percent(uint8_t accel)
 * This function changes the value of acceleration and re-computes c0 only
 * for the linear ramp speed profile.
 */	
+int8_t motor_set_accel_percent(uint8_t accel) 
+{
 	// check for a valid value and state
 	// Updates cannot happen while motor is moving!
 	if ((accel > 100) || (state != SPEED_HALT)) return -1;
@@ -169,6 +218,12 @@ int8_t motor_set_accel_percent(uint8_t accel)
 	return 0;
 }
 
+/*===========================================================================*/
+/*
+* Returns acceleration value in units of steps/sec^2. 
+* The constant 0.676 accounts for a correction aimed at getting the right
+* acceleration value, since the same constant was used when computing c0.
+*/
 int16_t motor_get_accel(void)
 {
 	float f_mot = (float)F_MOTOR;
@@ -177,15 +232,18 @@ int16_t motor_get_accel(void)
 	return (int16_t)acc;
 }
 
+/*===========================================================================*/
 uint16_t motor_get_speed(void)
 {
 	return timer_speed_get();
 }
 
+/*===========================================================================*/
 int8_t motor_get_speed_percent(void)
 {
 	float percent = 0.0;
 
+	// If timer is disabled, do nothing.
 	if (timer_speed_check()) {
 		uint16_t s = motor_get_speed();
 		float pulses = f / (float)(s + 1);
@@ -198,26 +256,34 @@ int8_t motor_get_speed_percent(void)
 	return (int8_t)percent;
 }
 
+/*===========================================================================*/
 uint8_t motor_get_profile(void)
 {
 	return speed_profile;
 }
 
+/*===========================================================================*/
 int32_t motor_get_position(void)
 {
 	return current_pos;
 }
 
+/*===========================================================================*/
 void motor_set_position(int32_t p)
 {
 	current_pos = p;
 }
 
+/*===========================================================================*/
 uint8_t motor_get_dir(void)
 {
 	return dir;
 }
 
+/*===========================================================================*/
+/*
+* Stopping the motor. It can be a sudden stop, or a smooth one.
+*/ 
 void motor_stop(uint8_t type) 
 {
 	if (type == SOFT_STOP) {
@@ -232,11 +298,24 @@ void motor_stop(uint8_t type)
 	}
 }
 
+/*===========================================================================*/
 uint8_t motor_working(void)
 {
 	return timer_speed_check();
 }
 
+/*===========================================================================*/
+/*
+*
+*
+*
+*
+*
+*
+*
+*
+*
+*/
 void motor_move_to_pos(int32_t p, uint8_t mode, uint8_t limits)
 {
 	ctl = POSITION_CONTROL;

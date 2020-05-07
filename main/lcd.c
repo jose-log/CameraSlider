@@ -1,16 +1,32 @@
+
 /*
- * lcd.c
+ * 16x2 LCD driver module. Based on the Hitachi HD44780 interface
+ * LCD interface bus is only 4 pins: Commands and data are sente one nibble at
+ * a time.
  *
- * Created: 15-Oct-18 9:25:48 PM
- *  Author: josel
+ * IMPORTANT: Timing for sending data and waiting for LCD driver to execute
+ * is based on the datasheet recommendations, but also empirically determined
+ * for some functions.
  */ 
+
+/******************************************************************************
+*******************	I N C L U D E   D E P E N D E N C I E S	*******************
+******************************************************************************/
 
 #include "lcd.h"
 
 #include <avr/io.h>
-#include <util/delay.h>
 #include <stdlib.h>
+#include <util/delay.h>
 
+/******************************************************************************
+******************* F U N C T I O N   D E F I N I T I O N S *******************
+******************************************************************************/
+
+/*===========================================================================*/
+/*
+* LCD Enable Pin
+*/
 static void lcd_enable(void)
 {
 	PORTB |= (1<<PORTB4);
@@ -19,6 +35,10 @@ static void lcd_enable(void)
 	_delay_us(1);
 }
 
+/*===========================================================================*/
+/*
+* LCD Send nibble
+*/
 static void lcd_send_nibble(uint8_t rs, uint8_t data)
 {
 	// RS
@@ -41,6 +61,10 @@ static void lcd_send_nibble(uint8_t rs, uint8_t data)
 	lcd_enable();
 }
 
+/*===========================================================================*/
+/*
+* LCD Send Byte = send two nibbles
+*/
 void lcd_send_byte(uint8_t rs, uint8_t data)
 {
 	uint8_t nibble;
@@ -51,6 +75,12 @@ void lcd_send_byte(uint8_t rs, uint8_t data)
 	_delay_us(40);
 }
 
+/*===========================================================================*/
+/*
+* LCD Initialization.
+* Timing for this sequence is based on datasheet recommendations, but also on
+* empirical tests
+*/
 void lcd_init(void)
 {
 	_delay_ms(15);
@@ -71,11 +101,19 @@ void lcd_init(void)
 	lcd_send_byte(0, LCD_DISPLAY_ON);
 }
 
+/*===========================================================================*/
+/*
+* Write a single character
+*/
 void lcd_write_char(char c)
 {	
 	lcd_send_byte(1, c);
 }
 
+/*===========================================================================*/
+/*
+* Write a whole string. Stop when finding NULL character.
+*/
 void lcd_write_str(char *c)
 {
 	while(*c != '\0'){
@@ -84,6 +122,10 @@ void lcd_write_str(char *c)
 	}
 }
 
+/*===========================================================================*/
+/*
+* Place cursor in the given row / column.
+*/
 void lcd_set_cursor(uint8_t row, uint8_t column)
 {
 	uint8_t addr;
@@ -95,12 +137,20 @@ void lcd_set_cursor(uint8_t row, uint8_t column)
 	_delay_ms(5);
 }
 
+/*===========================================================================*/
+/*
+* Clears the whole screen
+*/
 void lcd_clear_screen(void)
 {
 	lcd_send_byte(0, LCD_CLEAR_DISPLAY);
 	_delay_ms(2);
 }
 
+/*===========================================================================*/
+/*
+* Presets for different menus
+*/
 void lcd_screen(screen_t screen)
 {
 	uint8_t pro;
@@ -112,7 +162,6 @@ void lcd_screen(screen_t screen)
 			lcd_write_str("Slider PRO");
 			lcd_set_cursor(1,1);
 			lcd_write_str("David Logreira");
-			_delay_ms(1000);
 			break;
 
 		case SCREEN_HOMING:
@@ -271,6 +320,11 @@ void lcd_screen(screen_t screen)
 	}
 }
 
+/*===========================================================================*/
+/*
+* Updates the speed at which the motor is moving.
+* Input units are steps/second. It is converted to mm/sec, and displayed.
+*/
 void lcd_update_speed(uint16_t speed)
 {
 	// used to convert OCR1A value to cms_per_second
@@ -308,6 +362,11 @@ void lcd_update_speed(uint16_t speed)
 	lcd_write_str(decimal_str);
 }
 
+/*===========================================================================*/
+/*
+* Updates the current slider position.
+* Input units are N° of steps, and it converts it into millimeters.
+*/
 void lcd_update_position(int32_t pos)
 {
 	// used to display speed
@@ -326,6 +385,13 @@ void lcd_update_position(int32_t pos)
 	lcd_write_str(str);
 }
 
+/*===========================================================================*/
+/*
+* Displays the movement duaration values.
+* Not all values are displayed the same: Input value units is seconds.
+* - When time is greater than 60 seconds, display mm ss.
+* - When time is greater than 60 minutes, display hh mm.
+*/
 void lcd_update_time(float time)
 {
 	char str[6];
@@ -363,6 +429,10 @@ void lcd_update_time(float time)
 	}
 }
 
+/*===========================================================================*/
+/*
+* Displays the number of repetitios the user is selecting
+*/
 void lcd_update_reps(uint8_t r)
 {
 	char str[6];
@@ -374,6 +444,10 @@ void lcd_update_reps(uint8_t r)
 	lcd_write_str(str);
 }
 
+/*===========================================================================*/
+/*
+* Toggles between TRUE or FALSE
+*/
 void lcd_update_loop(uint8_t l)
 {
 	lcd_set_cursor(1,1);
@@ -381,6 +455,13 @@ void lcd_update_loop(uint8_t l)
 	else lcd_write_str("FALSE");
 }
 
+/*===========================================================================*/
+/*
+* Live update of the elapsed time.
+* Not all values are displayed the same: Input value units is seconds.
+* - When time is greater than 60 seconds, display mm ss.
+* - When time is greater than 60 minutes, display hh mm.
+*/
 void lcd_update_time_moving(uint16_t t)
 {
 	char str[6];
@@ -418,6 +499,10 @@ void lcd_update_time_moving(uint16_t t)
 	}
 }
 
+/*===========================================================================*/
+/*
+* Update percentage of total movement.
+*/
 void lcd_update_percent(int8_t percentage)
 {
 	char str[5];
@@ -429,31 +514,14 @@ void lcd_update_percent(int8_t percentage)
 	itoa(percentage, str, 10);
 	lcd_write_str(str);
 	lcd_write_char('%');
-
 }
 
+/*===========================================================================*/
+/*
+* Miscelaneous. Just writes LOOP (as opposed to writting the percentage)
+*/
 void lcd_write_loop(void)
 {
 	lcd_set_cursor(0,11);
 	lcd_write_str("LOOP ");
-}
-
-// debug ------------
-
-const uint8_t ascii_table[] = {
-	0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39
-};
-
-void lcd_update_cnt(uint8_t cnt)
-{
-	lcd_set_cursor(0,0);
-	uint8_t h, t, u;
-
-	h = cnt / 100;
-	t = (cnt % 100) / 10;
-	u = cnt % 10;
-
-	lcd_write_char(ascii_table[h]);
-	lcd_write_char(ascii_table[t]);
-	lcd_write_char(ascii_table[u]);
 }

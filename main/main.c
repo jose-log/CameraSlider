@@ -1,9 +1,12 @@
 /*
- * dev.c
- *
- * Created: 15-Oct-18 8:06:03 PM
- * Author : josel
- */ 
+* MAIN FILE
+*
+* The whole program is organized as a pseudo-FSM where the states are 
+* organized such that the user may be able to switch between them easily
+* through the menu structure.
+* Every menu is built into a function that handles all possible user interac-
+* tions with the slider configuration.
+*/ 
 
 /******************************************************************************
 *******************	I N C L U D E   D E P E N D E N C I E S	*******************
@@ -12,13 +15,11 @@
 #include "config.h"
 #include "init.h"
 #include "menu.h"
+#include "motor.h"
 #include "timers.h"
 #include "util.h"
 
-#include "motor.h"
-
 #include <avr/interrupt.h>
-#include <util/delay.h>
 #include <stdlib.h>
 
 /******************************************************************************
@@ -38,8 +39,10 @@ typedef enum {
 ****************** V A R I A B L E S   D E F I N I T I O N S ******************
 ******************************************************************************/
 
+// System state for the Finite States Machine
 volatile static state_t system_state = STATE_HOMING;
-volatile uint16_t ms = 0;
+// Structure that stores all user-programmed movement parameters to be
+// automatically executed by the slider.
 struct auto_s automatic;
 
 /******************************************************************************
@@ -48,12 +51,13 @@ struct auto_s automatic;
 
 int main(void)
 {
+	// Load all initial configuration
 	boot();
 
 	// Enable global Interrupts
 	sei();
 
-	// misc vars for retrieved arguments in menu functions
+	// misc variable for retrieved arguments in menu functions
 	int32_t x = 0;
 
 	while(TRUE){
@@ -61,7 +65,16 @@ int main(void)
 		/*
 		* SYSTEM MENU STRUCTURE:
 		*
-		* - Create Movement: (under construction)
+		* - Homing: initial callibration
+		* - Create Movement:
+		* 	- Initial position
+		*	- Final position
+		*	- Acceleration (ramp up/down)
+		*	- Movement time
+		*	- Set N° repetitions
+		*	- Set LOOP flag
+		* 	- Go to initial position
+		*	- Execute pre-programmed movement
 		* - Manual Movement:
 		* 	- Position control
 		*		- Linear profile
@@ -138,7 +151,9 @@ int main(void)
 				break;
 
 			/*
-			* CREATE MOVEMENT: under construction
+			* CREATE MOVEMENT: The user chooses from among a set of parameters
+			* that are stored in the "automatic" structure, and then passed on
+			* to the final function which executes the movement.
 			*/
 			case STATE_CREATE_MOVEMENT:
 			
@@ -158,7 +173,7 @@ int main(void)
 				* FINAL POSITION: Moves motor using speed control, and
 				* user places the motor at the final point of movement 
 				*/
-				x = user_set_position(TRUE);	// TRUE means initial pos
+				x = user_set_position(TRUE);	// TRUE means final pos
 				if (x < 0) {
 					system_state = STATE_CHOOSE_ACTION;
 					break;
@@ -167,7 +182,10 @@ int main(void)
 				}
 
 				/*
-				* ACCELERATION: percentage of acceleration range
+				* ACCELERATION: percentage of acceleration range.
+				* Maximum and minimum acceleration are constrained by physical
+				* and mathematical restrictions of the motor and the algorithm
+				* respectively.
 				*/
 				x = user_set_accel();
 				if (x < 0) {
@@ -192,7 +210,9 @@ int main(void)
 
 				/*
 				* REPETITIONS: up to 20 repetitions of the same movement.
-				* if reps is 0. No repetitions will be performed
+				* If reps = 1: slider moves from init to final position.
+				* If reps > 1: slider moves back and forth from init to final
+				* 	position, once per repetition selected.
 				*/
 				x = user_set_reps();
 				if (x < 0) {
@@ -204,7 +224,8 @@ int main(void)
 
 				/*
 				* LOOP: if active, movement will go from init position to
-				* final position, and back again to initial position
+				* final position, and back again to initial position, and repeat
+				* this cycle forever, ignoring the REPEAT parameter
 				*/
 				x = user_set_loop();
 				if (x < 0) {
@@ -219,7 +240,9 @@ int main(void)
 
 			case STATE_START_MOVEMENT:
 				/*
-				* Go to initial position:
+				* GO TO INITIAL POSITION. Slider will move towards the initial
+				* position point chosen by the user, and get ready to execute
+				* the user-programmed movement
 				*/
 				x = user_go_to_init(automatic.initial_pos);
 				if (x < 0) {
@@ -228,7 +251,8 @@ int main(void)
 				}
 
 				/*
-				* START automatic movement
+				* START automatic movement. All movement parameters are passed
+				* within the "automatic" structure.
 				*/
 				x = user_gogogo(automatic);
 				if (x < 0)
@@ -240,6 +264,11 @@ int main(void)
 
 				break;
 
+			/*
+			* FAIL SCREEN. If some error code is retrieved from some menu
+			* function, then the execution flow should fall into the FAIL
+			* screen message
+			*/
 			case STATE_FAIL:
 				fail_message();
 				system_state = STATE_CHOOSE_ACTION;
@@ -251,21 +280,3 @@ int main(void)
 	}
 }
 
-/******************************************************************************
-*******************************************************************************
-
-                    I N T E R R U P T   H A N D L E R S
-
-*******************************************************************************
-******************************************************************************/
-
-/*-----------------------------------------------------------------------------
-                   		 T I M E R   C O U N T E R S
------------------------------------------------------------------------------*/
-
-ISR(TIMER2_COMPA_vect){
-/*
-* General Timer. T=1ms
-*/
-	ms++;
-}

@@ -1,6 +1,5 @@
 
 #include "util.h"
-#include "config.h"
 
 #include <stdint.h>
 
