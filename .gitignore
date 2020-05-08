@@ -57,6 +57,7 @@ dkms.conf
 
 # Particular Files
 TODO
+*.ods
 
 # Test and analysis files
 *.ods
