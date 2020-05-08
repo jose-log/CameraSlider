@@ -306,15 +306,25 @@ uint8_t motor_working(void)
 
 /*===========================================================================*/
 /*
+* Position control function
+* This is a non-blocking control function, meaning that it sets all required
+* parameters, and initializes the motor movement, and relies on the subsequent
+* ISR computations to keep moving the motor at the right speed towards the 
+* target position.
 *
+* There's a catch: if the motor is already moving, the movement is not reset
+* but instead a new speed is computed and, depending on the new target position
+* relative to the current position, the slider may need to stop and move in the
+* opposite direction. In these cases, two movements need to be done, thus the
+* second movement is queuded, and executed once the first (stop) movement is
+* executed. The second movement does not require a call to this function, but
+* its automatically issued by means of an auxiliary ISR that triggers once the
+* first movement finishes.
 *
-*
-*
-*
-*
-*
-*
-*
+* Parameters:
+*	- p: new position value
+*	- mode: absolute (relative to origin) or relative (relative to current pos)
+* 	- limits: flag. Indicates whether to check for slider boundary limits. 
 */
 void motor_move_to_pos(int32_t p, uint8_t mode, uint8_t limits)
 {
@@ -401,6 +411,18 @@ void motor_move_to_pos(int32_t p, uint8_t mode, uint8_t limits)
 	}
 }
 
+/*===========================================================================*/
+/*
+* Blocking position control function
+* This is a blocking control function, meaning that it uses the non-blocking
+* counterpart, and polls the motor state until it is completely halted to 
+* finish execution.
+*
+* Parameters:
+*	- p: new position value
+*	- mode: absolute (relative to origin) or relative (relative to current pos)
+* 	- limits: flag. Indicates whether to check for slider boundary limits. 
+*/
 int8_t motor_move_to_pos_block(int32_t pos, uint8_t mode, uint8_t limits) 
 {
 	int8_t x = 0;
@@ -420,6 +442,26 @@ int8_t motor_move_to_pos_block(int32_t pos, uint8_t mode, uint8_t limits)
 	return x;
 }
 
+/*===========================================================================*/
+/*
+* Speed control function
+* This is a non-blocking control function, meaning that it sets all required
+* parameters, and initializes the motor movement, and relies on the subsequent
+* ISR computations to keep moving the motor at the right speed and taking care
+* of the slider rail limits.
+*
+* There's a catch: if the motor is already moving, the movement is not reset
+* but instead a new speed is computed and, depending on the new target speed
+* relative to the current speed, the slider may need to stop and move in the
+* opposite direction. In these cases, two movements need to be done, thus the
+* second movement is queuded, and executed once the first (stop) movement is
+* executed. The second movement does not require a call to this function, but
+* its automatically issued by means of an auxiliary ISR that triggers once the
+* first movement finishes.
+*
+* Parameters:
+*	- p: new speed value 
+*/
 void motor_move_at_speed(int8_t s)
 {
 	ctl = SPEED_CONTROL;
@@ -500,6 +542,25 @@ void motor_move_at_speed(int8_t s)
 --------------------- I N T E R N A L   F U N C T I O N S ---------------------
 -----------------------------------------------------------------------------*/
 
+/*===========================================================================*/
+/*
+* Position control, Cn computation
+* The algorithm is based on the ability to compute the next Cn coefficient,
+* based on the current Cn and the value of n itself. Cn is based on an 
+* arithmetic progression described on the David Austin paper on Real Time 
+* Calculations for Stepper Motors. The boundary for the arithmetic progression
+* is the maximum allowd speed. At that point the motor will not accelerate but
+* remain at a constant speed. 
+*
+* This function is constantly called from the motor timer ISR to compute every
+* time the new value of Cn.
+*
+* The arithmetic progression has slightly different form when the motor is
+* accelerating compared to when the motor is decelerating. The value of n also
+* depends on the current state of the movement. This function handles all these
+* cases, as well as handling the case when multiple movement commands are 
+* issued before the motor stops completely
+*/
 static void compute_c_position(void)
 {
 	int32_t steps_ahead = labs(target_pos - current_pos);
@@ -552,6 +613,25 @@ static void compute_c_position(void)
 	}
 }
 
+/*===========================================================================*/
+/*
+* Speed control, Cn computation
+* The algorithm is based on the ability to compute the next Cn coefficient,
+* based on the current Cn and the value of n itself. Cn is based on an 
+* arithmetic progression described on the David Austin paper on Real Time 
+* Calculations for Stepper Motors. The boundary for the arithmetic progression
+* is the maximum allowd speed. At that point the motor will not accelerate but
+* remain at a constant speed. 
+*
+* This function is constantly called from the motor timer ISR to compute every
+* time the new value of Cn.
+*
+* The arithmetic progression has slightly different form when the motor is
+* accelerating compared to when the motor is decelerating. The value of n also
+* depends on the current state of the movement. This function handles all these
+* cases, as well as handling the case when multiple movement commands are 
+* issued before the motor stops completely
+*/
 static void compute_c_speed(void)
 {
 	// limits of the slider: avoid crashing with the boundaries
@@ -608,6 +688,16 @@ static void compute_c_speed(void)
 	}
 }
 
+/*===========================================================================*/
+/*
+* Cn arithmetic progression. Four cases are considered:
+* - Linear speed profile:
+*	- Motor accelerating
+*	- Motor deceleating
+* - Quadratic speed profile:
+*	- Motor accelerating
+*	- Motor deceleating
+*/
 static void next_cn(void)
 {
 	if (speed_profile == PROFILE_LINEAR) {
@@ -627,6 +717,11 @@ static void next_cn(void)
 	}	
 }
 
+/*===========================================================================*/
+/*
+* Based on a speed percentage, get the minimum value of Cn, which is equivalent
+* to the maximum speed allowed
+*/
 static float get_cmin(uint8_t percent)
 {
 	// check for a valid value and state
@@ -641,20 +736,36 @@ static float get_cmin(uint8_t percent)
 	return (f / b) - 1.0;
 }
 
+/*===========================================================================*/
+/*
+* Queue motion. If the slider is moving in a certain direction and requires to
+* change direction, queue the motion to procede with the motor stop
+*/
 static void queue_position_motion(int32_t p) 
 {
 	queue_pos = p;
 	queue_full = TRUE;
-	uart_send_string("\n\r>");	// Debug
+	DEBUG("\n\r>");	// Debug
 }
 
+/*===========================================================================*/
+/*
+* Queue motion. If the slider is moving in a certain direction and requires to
+* change direction, queue the motion to procede with the motor stop
+*/
 static void queue_speed_motion(int8_t s)
 {
 	queue_speed = s;
 	queue_full = TRUE;
-	uart_send_string("\n\r>>");	// Debug
+	DEBUG("\n\r>>");	// Debug
 }
 
+/*===========================================================================*/
+/*
+* Motor Driver Pulse function.
+* Toggles the driver step pin to generate a step in the motor. Called from the
+* motor timer ISR
+*/
 static void pulse(void) 
 {
 	DRV_STEP_PORT |= (1<<DRV_STEP_PIN);
@@ -676,11 +787,14 @@ static void pulse(void)
 ********************** T I M E R S   I N T E R R U P T S **********************
 ******************************************************************************/
 
+/*===========================================================================*/
+/*
+* Motor timer interrupt. Whenever a new pulse needs to be issued (based on the
+* value of Cn), this ISR triggers. It steps the motor, sets the new Cn value
+* and computes the future Cn value.
+*/
 ISR(TIMER1_COMPA_vect) 
 {
-/*
-* Speed Timer.
-*/
 	pulse();
 	// set the new timing delay (based on computation of cn)
 	timer_speed_set_raw((uint16_t)cn);
@@ -689,15 +803,19 @@ ISR(TIMER1_COMPA_vect)
 	else if (ctl == SPEED_CONTROL) compute_c_speed();
 }
 
+/*===========================================================================*/
+/*
+* Miscelaneous Timer. Used to generate "software-like" interrupts.
+* When a movement has been queued, the way to trigger the new movement is by
+* enablig this interrupt at the end of the current movement. It will trigger
+* the missing movement using the non-blocking function (either for a speed
+* movement or a position movement)
+*/
 ISR(TIMER0_COMPA_vect) 
 {
-/*
-* Miscelaneous Timer
-* Used to generate "software-like" interrupts
-*/
 	timer_aux_set(DISABLE, 100);
 	if (ctl == POSITION_CONTROL) motor_move_to_pos(queue_pos, ABS, TRUE);
 	else if (ctl == SPEED_CONTROL) motor_move_at_speed(queue_speed);
 	queue_full = FALSE;
-	uart_send_string("\n\rTMR0");
+	DEBUG("\n\rTMR0");
 }

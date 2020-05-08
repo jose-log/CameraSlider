@@ -1,8 +1,11 @@
+
 /*
 * This file contains all the system states' functions that handle the motor
-* when it's moving.
-* This is in constrast to the move.c file that includes the system states 
-* functions where the motor is moving.
+* movement configuration menus, and the motor needs to be moved either by the
+* user or automatically.
+*
+* This is in constrast to the menu.c file that includes the menu system states
+* functions where the motor is not moving.
 */
 /******************************************************************************
 *******************	I N C L U D E   D E P E N D E N C I E S	*******************
@@ -18,6 +21,7 @@
 *******************	C O N S T A N T S  D E F I N I T I O N S ******************
 ******************************************************************************/
 
+// Automatic movement motor states.
 enum {
 	ST_MOVE_TO_XO,
 	ST_MOVE_TO_XI,
@@ -51,6 +55,18 @@ int8_t homing(void)
 	return 0;
 }
 
+/*-----------------------------------------------------------------------------
+-------------------- FUNCTIONS RELATED TO MANUAL MOVEMENT ---------------------
+-----------------------------------------------------------------------------*/
+
+/*===========================================================================*/
+/*
+* Manual speed: handles the manual speed control performed by the user through
+* the rotary encoder. It constantly polls the rotary encoder state to read
+* changes in speed, and issues a new speed movement.
+*
+* With the encoder button the user can return to the main menu
+*/
 int8_t manual_speed(void)
 {
 	int8_t i = 0;
@@ -112,6 +128,14 @@ int8_t manual_speed(void)
 	return 0;
 }
 
+/*===========================================================================*/
+/*
+* Manual position: handles the manual position control performed by the user
+* through the rotary encoder. It constantly polls the rotary encoder state to
+* read changes in position, and issues a new position movement.
+*
+* With the encoder button the user can return to the main menu
+*/
 uint8_t manual_position(void)
 {
 	uint16_t x, xi = 0;
@@ -162,6 +186,18 @@ uint8_t manual_position(void)
 	return 0;
 }
 
+/*-----------------------------------------------------------------------------
+------------------ FUNCTIONS RELATED TO AUTOMATIC MOVEMENT --------------------
+-----------------------------------------------------------------------------*/
+
+/*===========================================================================*/
+/*
+* Set initial/final position by the user: 
+* The user can move the motor using speed control and the rotary encoder to
+* position the motor at an initial/final point.
+*
+* With the encoder button the user can return to the main menu
+*/
 int32_t user_set_position(uint8_t p)
 {
 	int8_t i = 0;
@@ -237,6 +273,11 @@ int32_t user_set_position(uint8_t p)
 	return (out ? motor_get_position() : -1);
 }
 
+/*===========================================================================*/
+/*
+* Go to the initial position: Performs a blocking position movement until the
+* slider is positioned at the initial point set by the user
+*/
 int8_t user_go_to_init(int32_t pos)
 {
 	int8_t out = FALSE;
@@ -281,6 +322,23 @@ int8_t user_go_to_init(int32_t pos)
 	return out;
 }
 
+/*===========================================================================*/
+/*
+* Automatic movement execution.
+* It reads the parameters stored in the 'm' structure and sets all parameters
+* to automatically perform the desired movement.
+*
+* If 'Loop' is TRUE, the 'reps' parameter is ignored and the movement is an
+* infinite loop. If it's FALSE, then the movement will repeat according to the
+* value stored in 'reps'. 
+* 
+* Since the movement is based on going from initial position to final position
+* and back, the coordination of these movements is handled within the switch()
+* statement.
+*
+* The display is updated periodically with the elapsed time and percentage of 
+* movement completed
+*/
 int8_t user_gogogo(struct auto_s m)
 {
 	int8_t out = FALSE;
@@ -290,39 +348,38 @@ int8_t user_gogogo(struct auto_s m)
 	uint8_t n_move = 0;
 	int32_t steps_completed = 0;
 	struct btn_s *btn = button_get();
-
 	int8_t state = 0;
-
 	//debug
 	char str[12];
+
+	DEBUG_P("\n\r> Go go go!");
 
 	// Percentage calculation:
 	total_steps = fabs(m.final_pos - m.initial_pos);
 	if (m.reps > 1) total_steps *= 2 * (int32_t)m.reps;
 	// debug:
 	ltoa(total_steps, str, 10);
-	uart_send_string("\n\rtot steps: ");
-	uart_send_string(str);
+	DEBUG("\n\rtot steps: ");
+	DEBUG(str);
 	ltoa(m.initial_pos, str, 10);
-	uart_send_string(" | init: ");
-	uart_send_string(str);
+	DEBUG(" | init: ");
+	DEBUG(str);
 	ltoa(m.final_pos, str, 10);
-	uart_send_string(" | final: ");
-	uart_send_string(str);
+	DEBUG(" | final: ");
+	DEBUG(str);
 
 	// LCD screen:
 	lcd_screen(SCREEN_GO);
-	uart_send_string_p(PSTR("\n\r> Go go go!"));
 	lcd_update_time_moving(secs);
 	if (m.loop) lcd_write_loop();
 	
 	//debug
 	ltoa(m.speed, str, 10);
-	uart_send_string("\n\rspd: ");
-	uart_send_string(str);
+	DEBUG("\n\rspd: ");
+	DEBUG(str);
 	ltoa(total_steps, str, 10);
-	uart_send_string(" | total: ");
-	uart_send_string(str);
+	DEBUG(" | total: ");
+	DEBUG(str);
 
 	// Trim motor parameters.
 	motor_set_speed_profile(PROFILE_LINEAR);
@@ -339,6 +396,8 @@ int8_t user_gogogo(struct auto_s m)
 		while(!x) x = millis();
 		xi++;
 
+		// movement coordination based on a series of states that depend on
+		// the amount of repetitions and the Loop flag value.
 		switch (state) {
 			case ST_MOVE_TO_XO:
 				// Go without blocking movement
@@ -450,6 +509,11 @@ int8_t user_gogogo(struct auto_s m)
 --------------------- I N T E R N A L   F U N C T I O N S ---------------------
 -----------------------------------------------------------------------------*/
 
+/*===========================================================================*/
+/*
+* Sequence of Homing movements that move towards the beginning of the slider
+* rail.
+*/
 static int8_t homing_cycle(void){
 	
 	int8_t x = -1;

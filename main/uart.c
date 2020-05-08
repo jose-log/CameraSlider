@@ -1,26 +1,13 @@
-/******************************************************************************
- * Copyright (C) 2018 by Nuvitron - Jose Logreira
- *
- * This software is subject to the terms of the GNU General Public License. 
- * Upon copy, modification or redistribution, users are required to maintain 
- * this copyright. See the GNU General Public License for more details.
- *
- *****************************************************************************/
-/**
- * @file uart.c
- * @brief Serial communication
- *
- * @author Jose Logreira
- * @date 15.05.2018
- *
- */
 
+/*
+* UART module driver.
+* It handles all uart-related functions
+*/
 /******************************************************************************
 *******************	I N C L U D E   D E P E N D E N C I E S	*******************
 ******************************************************************************/
 
 #include "uart.h"
-#include "config.h"
 
 #include <avr/io.h>
 #include <stdint.h>
@@ -40,6 +27,7 @@
 // prototype functions with local scope
 static uint8_t uart_flush(void);
 
+/*===========================================================================*/
 void uart_init(void){
 
 		/*Set baud rate */
@@ -56,6 +44,7 @@ void uart_init(void){
 	UCSR0C |= (1<<UCSZ01) | (1<<UCSZ00);
 }
 
+/*===========================================================================*/
 void uart_send_char( char data ){
 	
 	/* Wait for empty transmit buffer */
@@ -68,6 +57,7 @@ void uart_send_char( char data ){
 	while ( !( UCSR0A & (1<<UDRE0)) );
 }
 
+/*===========================================================================*/
 void uart_send_string(const char *s){
 
 	while (*s != '\0')
@@ -77,6 +67,7 @@ void uart_send_string(const char *s){
 	}
 }
 
+/*===========================================================================*/
 void uart_send_string_p(const char *s){
 
 	while (pgm_read_byte(s) != '\0')
@@ -86,6 +77,7 @@ void uart_send_string_p(const char *s){
 	}
 }
 
+/*===========================================================================*/
 char uart_read_char( void ){
 
 	/* Wait for data to be received */
@@ -95,6 +87,7 @@ char uart_read_char( void ){
 	return UDR0;
 }
 
+/*===========================================================================*/
 void uart_set(uint8_t state){
 
 	if(state){
@@ -107,6 +100,7 @@ void uart_set(uint8_t state){
 	}
 }
 
+/*===========================================================================*/
 static uint8_t uart_flush(void){
 
 	char trash;
