@@ -1,4 +1,4 @@
-# CameraSlider
+# Camera Slider
 A 1-axis stepper motor camera slider controller
 
 A neat application for stepper motors is by controlling camera sliders. They can include 1, 2 or 3 motors depending on the degrees of freedom needed for the filming task.
