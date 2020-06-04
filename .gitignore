@@ -57,6 +57,11 @@ dkms.conf
 
 # Particular Files
 TODO
+*.ods
+main/output/*
+computingTime/output/*
+accelStepper/output/*
+
 # Test and analysis files
 *.ods
 

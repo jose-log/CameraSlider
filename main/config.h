@@ -27,7 +27,7 @@
 #define CCW		FALSE
 
 // Debug
-#define DEBUG(x) 	uart_send_string(x);
-#define DEBUG_P(x) 	uart_send_string(PSTR(x));
+#define DEBUG(x) 	uart_send_string(x)
+#define DEBUG_P(x) 	uart_send_string(PSTR(x))
 
 #endif /* CONFIG_H_ */
